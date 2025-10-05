@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Nutricional</title>
+    <meta name="description" content="Sistema profesional de gestión nutricional para profesionales de la salud">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Hero Section with Integrated Navigation -->
+    <section id="home" class="hero-section">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNavbar">
+            <div class="container">
+                <a class="navbar-brand fw-bold text-white" href="#home">
+                    <i class="fas fa-leaf me-2" style="color: var(--accent-color);"></i>Sistema Nutricional
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#home">Inicio</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#about">Sobre Mí</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#services">Servicios</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#testimonials">Testimonios</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#contact">Contacto</a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a href="/login/index.html" class="btn btn-outline-light me-2 navbar-btn">
+                                <i class="fas fa-sign-in-alt me-2"></i>Ingresar
+                            </a>
+                            <button class="btn btn-warning navbar-btn" onclick="openAppointmentModal()">
+                                <i class="fas fa-calendar-plus me-2"></i>Sacar Turno
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Content -->
+        <div class="hero-overlay"></div>
+        <div class="container hero-container">
+            <div class="row align-items-center min-vh-100">
+                <div class="col-lg-6">
+                    <div class="hero-content">
+                        <h1 class="display-4 fw-bold text-white mb-4">
+                            Sistema de <span style="color: var(--accent-color);">Gestión Nutricional</span> Profesional
+                        </h1>
+                        <p class="lead text-white mb-4">
+                            Plataforma integral para profesionales de la salud que centraliza la gestión de pacientes, 
+                            turnos y evolución clínica. Registra historias clínicas completas, consultas, antropometría 
+                            y planes de alimentación personalizados.
+                        </p>
+                        <div class="hero-features mb-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="feature-item mb-3">
+                                        <i class="fas fa-chart-line style="color: var(--accent-color);" me-2"></i>
+                                        <span class="text-white">Seguimiento completo</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="feature-item mb-3">
+                                        <i class="fas fa-calendar-check style="color: var(--accent-color);" me-2"></i>
+                                        <span class="text-white">Gestión de turnos</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="feature-item mb-3">
+                                        <i class="fas fa-camera style="color: var(--accent-color);" me-2"></i>
+                                        <span class="text-white">Registro fotográfico</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="feature-item mb-3">
+                                        <i class="fas fa-mobile-alt style="color: var(--accent-color);" me-2"></i>
+                                        <span class="text-white">Acceso móvil</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-buttons">
+                            <button class="btn btn-warning btn-lg me-3" onclick="openAppointmentModal()">
+                                <i class="fas fa-calendar-plus me-2"></i>Sacar Turno
+                            </button>
+                            <button class="btn btn-outline-light btn-lg" onclick="scrollToSection('about')">
+                                <i class="fas fa-info-circle me-2"></i>Conocer Más
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="hero-image text-center">
+                        <div class="hero-card">
+                            <div class="professional-avatar">
+                                <i class="fas fa-user-md"></i>
+                            </div>
+                            <h3 class="mt-3" style="color: var(--primary-color);">Profesional de la Salud</h3>
+                            <p class="text-muted mb-3">Sistema de Gestión Nutricional</p>
+                            <div class="credentials">
+                                <span class="badge me-2" style="background-color: var(--primary-color);">Lic. Nutrición</span>
+                                <span class="badge" style="background-color: var(--secondary-color);">Experiencia</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Floating Elements -->
+        <div class="floating-elements">
+            <div class="floating-icon floating-1">
+                <i class="fas fa-apple-alt"></i>
+            </div>
+            <div class="floating-icon floating-2">
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="floating-icon floating-3">
+                <i class="fas fa-dumbbell"></i>
+            </div>
+            <div class="floating-icon floating-4">
+                <i class="fas fa-leaf"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="about-content">
+                        <h2 class="display-5 fw-bold mb-4" style="color: var(--primary-color);">Sobre el Sistema</h2>
+                        <p class="lead mb-4">
+                            Nuestro sistema de gestión nutricional está diseñado para profesionales de la salud 
+                            que buscan una solución integral para la gestión de pacientes, turnos y seguimiento 
+                            clínico nutricional.
+                        </p>
+                        <div class="about-features">
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-graduation-cap text-primary me-3"></i>
+                                <span>Licenciado en Nutrición</span>
+                            </div>
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-certificate text-primary me-3"></i>
+                                <span>Especialista en Nutrición Clínica</span>
+                            </div>
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-users text-primary me-3"></i>
+                                <span>+500 pacientes atendidos</span>
+                            </div>
+                            <div class="feature-item mb-3">
+                                <i class="fas fa-star text-primary me-3"></i>
+                                <span>Certificaciones internacionales</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="about-image">
+                        <div class="image-placeholder">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                        <h2 class="display-5 fw-bold" style="color: var(--primary-color);">Mis Servicios</h2>
+                <p class="lead text-muted">Soluciones nutricionales adaptadas a tus necesidades</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="service-card h-100">
+                        <div class="service-icon">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Planes Alimentarios</h4>
+                        <p class="text-muted">
+                            Diseño de planes nutricionales personalizados según tus objetivos, 
+                            preferencias alimentarias y estilo de vida.
+                        </p>
+                        <ul class="service-features">
+                            <li>Análisis nutricional completo</li>
+                            <li>Menús variados y equilibrados</li>
+                            <li>Seguimiento personalizado</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="service-card h-100">
+                        <div class="service-icon">
+                            <i class="fas fa-weight"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Control de Peso</h4>
+                        <p class="text-muted">
+                            Programas especializados para pérdida, mantenimiento o aumento 
+                            de peso de forma saludable y sostenible.
+                        </p>
+                        <ul class="service-features">
+                            <li>Evaluación corporal completa</li>
+                            <li>Metas realistas y alcanzables</li>
+                            <li>Apoyo psicológico nutricional</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="service-card h-100">
+                        <div class="service-icon">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Nutrición Clínica</h4>
+                        <p class="text-muted">
+                            Tratamiento nutricional para diversas patologías como diabetes, 
+                            hipertensión, problemas digestivos y más.
+                        </p>
+                        <ul class="service-features">
+                            <li>Tratamiento de enfermedades</li>
+                            <li>Educación nutricional</li>
+                            <li>Trabajo multidisciplinario</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold" style="color: var(--primary-color);">Lo que dicen mis pacientes</h2>
+                <p class="lead text-muted">Testimonios reales de personas que transformaron su vida</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <div class="stars mb-3">
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                            </div>
+                            <p class="mb-3">
+                                "El Dr. Allendez me ayudó a perder 15kg de forma saludable. 
+                                Su enfoque personalizado hizo que el proceso fuera sostenible."
+                            </p>
+                            <div class="testimonial-author">
+                                <strong>María González</strong>
+                                <small class="text-muted d-block">Paciente desde 2022</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <div class="stars mb-3">
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                            </div>
+                            <p class="mb-3">
+                                "Excelente profesional. Me enseñó a comer mejor y controlar mi diabetes. 
+                                Muy recomendado para cualquier problema nutricional."
+                            </p>
+                            <div class="testimonial-author">
+                                <strong>Carlos Rodríguez</strong>
+                                <small class="text-muted d-block">Paciente desde 2021</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <div class="stars mb-3">
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                                <i class="fas fa-star style="color: var(--accent-color);""></i>
+                            </div>
+                            <p class="mb-3">
+                                "Los planes alimentarios son deliciosos y fáciles de seguir. 
+                                He mejorado mi energía y mi salud general significativamente."
+                            </p>
+                            <div class="testimonial-author">
+                                <strong>Ana Martínez</strong>
+                                <small class="text-muted d-block">Paciente desde 2023</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-5 bg-primary text-white">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h2 class="display-5 fw-bold mb-4">¿Listo para comenzar?</h2>
+                    <p class="lead mb-4">
+                        Toma el primer paso hacia una vida más saludable. 
+                        Agenda tu consulta y descubre cómo la nutrición puede transformar tu bienestar.
+                    </p>
+                    <div class="contact-info">
+                        <div class="contact-item mb-3">
+                            <i class="fas fa-phone me-3"></i>
+                            <span>+54 9 11 1234-5678</span>
+                        </div>
+                        <div class="contact-item mb-3">
+                            <i class="fas fa-envelope me-3"></i>
+                            <span>alexis.allendez@nutricion.com</span>
+                        </div>
+                        <div class="contact-item mb-3">
+                            <i class="fas fa-map-marker-alt me-3"></i>
+                            <span>Av. Corrientes 1234, Buenos Aires</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="contact-actions text-center">
+                        <button class="btn btn-warning btn-lg mb-3 d-block w-100" onclick="openAppointmentModal()">
+                            <i class="fas fa-calendar-plus me-2"></i>Agendar Consulta
+                        </button>
+                        <a href="/login/index.html" class="btn btn-outline-light btn-lg d-block w-100">
+                            <i class="fas fa-sign-in-alt me-2"></i>Acceso al Sistema
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0">&copy; 2024 Dr. Alexis Allendez - Nutricionista Profesional</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="social-links">
+                        <a href="#" class="text-white me-3"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-white me-3"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-white me-3"><i class="fab fa-linkedin"></i></a>
+                        <a href="#" class="text-white"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Appointment Modal -->
+    <div class="modal fade" id="appointmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agendar Consulta</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="appointmentForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="firstName" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="firstName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="lastName" class="form-label">Apellido</label>
+                                <input type="text" class="form-control" id="lastName" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="phone" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="phone" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="emailAppointment" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="emailAppointment" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="date" class="form-label">Fecha preferida</label>
+                                <input type="date" class="form-control" id="date" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="time" class="form-label">Hora preferida</label>
+                                <select class="form-select" id="time" required>
+                                    <option value="">Seleccionar hora</option>
+                                    <option value="09:00">09:00</option>
+                                    <option value="10:00">10:00</option>
+                                    <option value="11:00">11:00</option>
+                                    <option value="14:00">14:00</option>
+                                    <option value="15:00">15:00</option>
+                                    <option value="16:00">16:00</option>
+                                    <option value="17:00">17:00</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="service" class="form-label">Tipo de consulta</label>
+                            <select class="form-select" id="service" required>
+                                <option value="">Seleccionar servicio</option>
+                                <option value="primera">Primera consulta</option>
+                                <option value="control">Control de seguimiento</option>
+                                <option value="plan">Nuevo plan alimentario</option>
+                                <option value="emergencia">Consulta de urgencia</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Mensaje adicional</label>
+                            <textarea class="form-control" id="message" rows="3" placeholder="Cuéntanos sobre tus objetivos o necesidades específicas..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="handleAppointment()">Agendar Consulta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    
+    <!-- Custom JS -->
+    <script src="index.js"></script>
+</body>
+</html>
