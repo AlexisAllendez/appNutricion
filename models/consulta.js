@@ -36,7 +36,25 @@ class Consulta {
 
     // Generar código de cancelación único
     static generateCancelCode() {
-        return crypto.randomBytes(16).toString('hex');
+        // Generar código más corto e intuitivo: CAN-XXXX-YYYY
+        // XXXX: 4 caracteres alfanuméricos
+        // YYYY: 4 caracteres alfanuméricos
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = 'CAN-';
+        
+        // Generar primera parte (4 caracteres)
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        
+        code += '-';
+        
+        // Generar segunda parte (4 caracteres)
+        for (let i = 0; i < 4; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        
+        return code;
     }
 
     // Alias para mantener compatibilidad

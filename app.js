@@ -84,6 +84,7 @@ app.use('/api/laboratorios', require('./routes/laboratorioRoutes'));
 app.use('/api/antecedentes', require('./routes/antecedenteRoutes'));
 app.use('/api/evoluciones-medicas', evolucionMedicaRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api/reservas', require('./routes/reservaRoutes'));
 app.use('/api', registrationKeyRoutes);
 
 // Ruta de prueba de conexión
@@ -164,6 +165,11 @@ app.get('/login', (req, res) => {
 // Ruta de horarios
 app.get('/horarios', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'horarios', 'index.html'));
+});
+
+// Ruta de reservar turno
+app.get('/reservar-turno', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'reservar-turno', 'index.html'));
 });
 
 // Ruta de dashboard paciente

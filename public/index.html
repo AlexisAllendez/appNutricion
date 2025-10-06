@@ -48,12 +48,12 @@
                             <a class="nav-link text-white" href="#contact">Contacto</a>
                         </li>
                         <li class="nav-item ms-3">
-                            <a href="/login/index.html" class="btn btn-outline-light me-2 navbar-btn">
+                            <a href="/login" class="btn btn-outline-light me-2 navbar-btn">
                                 <i class="fas fa-sign-in-alt me-2"></i>Ingresar
                             </a>
-                            <button class="btn btn-warning navbar-btn" onclick="openAppointmentModal()">
-                                <i class="fas fa-calendar-plus me-2"></i>Sacar Turno
-                            </button>
+                            <a href="/reservar-turno" class="btn btn-warning navbar-btn">
+                                <i class="fas fa-calendar-plus me-2"></i>Reservar Turno
+                            </a>
                         </li>
                     </ul>
                 </div>
@@ -103,9 +103,9 @@
                             </div>
                         </div>
                         <div class="hero-buttons">
-                            <button class="btn btn-warning btn-lg me-3" onclick="openAppointmentModal()">
-                                <i class="fas fa-calendar-plus me-2"></i>Sacar Turno
-                            </button>
+                            <a href="/reservar-turno" class="btn btn-warning btn-lg me-3">
+                                <i class="fas fa-calendar-plus me-2"></i>Reservar Turno
+                            </a>
                             <button class="btn btn-outline-light btn-lg" onclick="scrollToSection('about')">
                                 <i class="fas fa-info-circle me-2"></i>Conocer Más
                             </button>
@@ -355,10 +355,10 @@
                 </div>
                 <div class="col-lg-6">
                     <div class="contact-actions text-center">
-                        <button class="btn btn-warning btn-lg mb-3 d-block w-100" onclick="openAppointmentModal()">
+                        <a href="/reservar-turno" class="btn btn-warning btn-lg mb-3 d-block w-100">
                             <i class="fas fa-calendar-plus me-2"></i>Agendar Consulta
-                        </button>
-                        <a href="/login/index.html" class="btn btn-outline-light btn-lg d-block w-100">
+                        </a>
+                        <a href="/login" class="btn btn-outline-light btn-lg d-block w-100">
                             <i class="fas fa-sign-in-alt me-2"></i>Acceso al Sistema
                         </a>
                     </div>
@@ -387,78 +387,6 @@
     </footer>
 
 
-    <!-- Appointment Modal -->
-    <div class="modal fade" id="appointmentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Agendar Consulta</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="appointmentForm">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="firstName" class="form-label">Nombre</label>
-                                <input type="text" class="form-control" id="firstName" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="lastName" class="form-label">Apellido</label>
-                                <input type="text" class="form-control" id="lastName" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="phone" class="form-label">Teléfono</label>
-                                <input type="tel" class="form-control" id="phone" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="emailAppointment" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="emailAppointment" required>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="date" class="form-label">Fecha preferida</label>
-                                <input type="date" class="form-control" id="date" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="time" class="form-label">Hora preferida</label>
-                                <select class="form-select" id="time" required>
-                                    <option value="">Seleccionar hora</option>
-                                    <option value="09:00">09:00</option>
-                                    <option value="10:00">10:00</option>
-                                    <option value="11:00">11:00</option>
-                                    <option value="14:00">14:00</option>
-                                    <option value="15:00">15:00</option>
-                                    <option value="16:00">16:00</option>
-                                    <option value="17:00">17:00</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="service" class="form-label">Tipo de consulta</label>
-                            <select class="form-select" id="service" required>
-                                <option value="">Seleccionar servicio</option>
-                                <option value="primera">Primera consulta</option>
-                                <option value="control">Control de seguimiento</option>
-                                <option value="plan">Nuevo plan alimentario</option>
-                                <option value="emergencia">Consulta de urgencia</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="message" class="form-label">Mensaje adicional</label>
-                            <textarea class="form-control" id="message" rows="3" placeholder="Cuéntanos sobre tus objetivos o necesidades específicas..."></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="handleAppointment()">Agendar Consulta</button>
-                </div>
-            </div>
-        </div>
-    </div>
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>

@@ -213,14 +213,14 @@ class Agenda {
             const profesional = await executeQuery(profesionalQuery, [profesionalId]);
             const timezone = profesional[0]?.timezone || 'UTC';
             
-            // Obtener el día de la semana de la fecha en la zona horaria del profesional
+            // Obtener el día de la semana de la fecha
             const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
             
-            // Crear fecha en la zona horaria del profesional
+            // La fecha viene en formato YYYY-MM-DD, crear objeto Date
             const fechaEnTimezone = new Date(fecha + 'T12:00:00'); // Mediodía para evitar problemas de zona horaria
             const diaSemana = diasSemana[fechaEnTimezone.getDay()];
             
-            console.log(`Fecha: ${fecha}, Timezone: ${timezone}, Día de la semana: ${diaSemana}`);
+            console.log(`Fecha: ${fecha}, Día de la semana: ${diaSemana}`);
 
             // Obtener horarios configurados para ese día
             const horariosQuery = `
