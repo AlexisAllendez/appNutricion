@@ -157,11 +157,6 @@ app.get('/new-patient', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'new-patient', 'index.html'));
 });
 
-// Ruta de login
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'login', 'index.html'));
-});
-
 // Ruta de horarios
 app.get('/horarios', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'horarios', 'index.html'));
@@ -193,11 +188,11 @@ app.use(handleDatabaseError);
 // Middleware de manejo de errores
 app.use(errorHandler);
 
-// Middleware para rutas no encontradas
-app.use('*', (req, res) => {
+// Middleware para rutas no encontradas (solo para API)
+app.use('/api/*', (req, res) => {
     res.status(404).json({
         success: false,
-        message: 'Ruta no encontrada',
+        message: 'Ruta de API no encontrada',
         path: req.originalUrl
     });
 });

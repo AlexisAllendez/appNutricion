@@ -65,7 +65,21 @@ class Laboratorio {
                 ORDER BY l.fecha_estudio DESC, l.creado_en DESC
             `, [usuarioId]);
 
-            return rows;
+            // Para cada laboratorio, obtener sus resultados
+            const laboratoriosConResultados = await Promise.all(
+                rows.map(async (laboratorio) => {
+                    const [resultadosRows] = await connection.execute(`
+                        SELECT * FROM resultados_laboratorio 
+                        WHERE laboratorio_id = ?
+                        ORDER BY parametro ASC
+                    `, [laboratorio.id]);
+
+                    laboratorio.resultados = resultadosRows;
+                    return laboratorio;
+                })
+            );
+
+            return laboratoriosConResultados;
         } catch (error) {
             console.error('Error en getLaboratoriosByUsuario:', error);
             throw error;
@@ -88,7 +102,21 @@ class Laboratorio {
                 ORDER BY l.fecha_estudio DESC, l.creado_en DESC
             `, [profesionalId]);
 
-            return rows;
+            // Para cada laboratorio, obtener sus resultados
+            const laboratoriosConResultados = await Promise.all(
+                rows.map(async (laboratorio) => {
+                    const [resultadosRows] = await connection.execute(`
+                        SELECT * FROM resultados_laboratorio 
+                        WHERE laboratorio_id = ?
+                        ORDER BY parametro ASC
+                    `, [laboratorio.id]);
+
+                    laboratorio.resultados = resultadosRows;
+                    return laboratorio;
+                })
+            );
+
+            return laboratoriosConResultados;
         } catch (error) {
             console.error('Error en getLaboratoriosByProfesional:', error);
             throw error;

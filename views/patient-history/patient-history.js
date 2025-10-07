@@ -8,6 +8,9 @@ let currentPatient = null; // Store current patient data for export
 let consultasData = []; // Store consultations data for export
 let antropometriaData = []; // Store anthropometry data for export
 let currentAnthropometryData = []; // Store current data for comparison
+let antecedentesData = null; // Store antecedents data
+let laboratoriosData = []; // Store laboratories data
+let currentEditingLaboratory = null; // Store laboratory being edited
 let currentNutritionData = {
     activePlan: null,
     history: []
@@ -145,20 +148,27 @@ async function getPatientDataFromAPI(patientId) {
         
         if (result.success && result.data) {
             const patient = result.data;
+            
+            // Obtener datos de antropometría para peso e IMC actuales
+            const anthropometryData = await getLatestAnthropometryData(patientId);
+            
+            // Obtener datos de antecedentes para alergias y medicamentos
+            const antecedentsData = await getAntecedentsData(patientId);
+            
             return {
                 id: patient.id,
                 name: patient.apellido_nombre || 'Sin nombre',
                 dni: patient.numero_documento || 'Sin DNI',
-                birthDate: patient.fecha_nacimiento || 'Sin fecha',
+                birthDate: await formatDateWithTimezone(patient.fecha_nacimiento),
                 age: patient.fecha_nacimiento ? calculateAge(patient.fecha_nacimiento) : 'Sin edad',
                 phone: patient.telefono || 'Sin teléfono',
                 email: patient.email || 'Sin email',
                 insurance: patient.obra_social || 'Sin obra social',
                 bloodType: patient.grupo_sanguineo || 'Sin grupo',
-                allergies: 'Ninguna conocida',
-                medications: 'Sin medicamentos',
-                currentWeight: 'Sin peso',
-                imc: 'Sin IMC'
+                allergies: antecedentsData?.alergias || 'Ninguna conocida',
+                medications: antecedentsData?.medicamentos_habituales || 'Sin medicamentos',
+                currentWeight: anthropometryData.weight || 'Sin peso',
+                imc: anthropometryData.imc || 'Sin IMC'
             };
         } else {
             throw new Error('No se encontraron datos del paciente');
@@ -167,6 +177,283 @@ async function getPatientDataFromAPI(patientId) {
     } catch (error) {
         console.error('Error loading patient data from API:', error);
         throw error;
+    }
+}
+
+// Get antecedents data for a patient
+async function getAntecedentsData(patientId) {
+    try {
+        console.log('🔍 Obteniendo datos de antecedentes para paciente:', patientId);
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.warn('❌ No se encontró token de autenticación');
+            return null;
+        }
+        
+        const response = await fetch(`/api/antecedentes/usuario/${patientId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📡 Respuesta de la API de antecedentes:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.log('📝 No hay antecedentes registrados para este paciente');
+                return null;
+            }
+            console.warn('❌ No se pudieron obtener datos de antecedentes:', response.status);
+            return null;
+        }
+        
+        const result = await response.json();
+        console.log('📊 Datos de antecedentes recibidos:', result);
+        
+        if (result.success && result.data) {
+            return result.data;
+        } else {
+            console.warn('⚠️ No hay datos de antecedentes disponibles');
+            return null;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo datos de antecedentes:', error);
+        return null;
+    }
+}
+
+// Get latest anthropometry data for a patient
+async function getLatestAnthropometryData(patientId) {
+    try {
+        console.log('🔍 Obteniendo datos de antropometría para paciente:', patientId);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.warn('❌ No se encontró token de autenticación');
+            return { weight: null, imc: null };
+        }
+        
+        const response = await fetch(`/api/antropometria/usuario/${patientId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📡 Respuesta de la API:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            console.warn('❌ No se pudieron obtener datos de antropometría:', response.status);
+            return { weight: null, imc: null };
+        }
+        
+        const result = await response.json();
+        console.log('📊 Datos recibidos de la API:', result);
+        
+        if (result.success && result.data && result.data.length > 0) {
+            // Ordenar por fecha para obtener la más reciente
+            const sortedData = result.data.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            const latest = sortedData[0];
+            
+            console.log('📈 Medición más reciente:', latest);
+            
+            const weight = latest.peso && !isNaN(parseFloat(latest.peso)) ? `${parseFloat(latest.peso)} kg` : null;
+            const imc = latest.imc && !isNaN(parseFloat(latest.imc)) ? parseFloat(latest.imc).toFixed(1) : null;
+            
+            console.log('✅ Datos procesados - Peso:', weight, 'IMC:', imc);
+            
+            return { weight, imc };
+        } else {
+            console.warn('⚠️ No hay datos de antropometría disponibles');
+            return { weight: null, imc: null };
+        }
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo datos de antropometría:', error);
+        return { weight: null, imc: null };
+    }
+}
+
+// Get profesional data including timezone
+async function getProfesionalData() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.warn('❌ No se encontró token de autenticación');
+            return null;
+        }
+        
+        console.log('🔍 Obteniendo datos del profesional con token:', token.substring(0, 20) + '...');
+        
+        const response = await fetch('/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            console.warn('❌ No se pudieron obtener datos del profesional:', response.status);
+            return null;
+        }
+        
+        const result = await response.json();
+        console.log('📊 Datos recibidos:', result);
+        
+        return result.success ? result.data.user : null;
+        
+    } catch (error) {
+        console.warn('❌ Error obteniendo datos del profesional:', error);
+        return null;
+    }
+}
+
+// Format date for input field (YYYY-MM-DD format) using professional's timezone
+async function formatDateForInput(dateString) {
+    if (!dateString || dateString === 'Sin fecha') {
+        return '';
+    }
+    
+    try {
+        const profesional = await getProfesionalData();
+        const timezone = profesional?.timezone || 'UTC';
+        
+        console.log('🕐 Formateando fecha para input con zona horaria:', timezone);
+        
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            console.warn('⚠️ Fecha inválida:', dateString);
+            return '';
+        }
+        
+        // Create a formatter for the professional's timezone
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        
+        // Format the date (en-CA gives us YYYY-MM-DD format)
+        const formattedDate = formatter.format(date);
+        
+        console.log('✅ Fecha formateada para input:', formattedDate);
+        return formattedDate;
+        
+    } catch (error) {
+        console.warn('Error formateando fecha para input:', error);
+        // Fallback: try to extract YYYY-MM-DD from the date string
+        try {
+            const date = new Date(dateString);
+            if (!isNaN(date.getTime())) {
+                return date.toISOString().split('T')[0];
+            }
+        } catch (fallbackError) {
+            console.warn('Error en fallback de fecha:', fallbackError);
+        }
+        return '';
+    }
+}
+
+// Format date using professional's timezone (reusable helper)
+async function formatDateWithTimezoneHelper(dateString, options = {}) {
+    if (!dateString || dateString === 'Sin fecha') {
+        return 'Sin fecha';
+    }
+    
+    try {
+        // Get professional data to use their timezone
+        const profesional = await getProfesionalData();
+        const timezone = profesional?.timezone || 'UTC';
+        
+        // Create date object and format using professional's timezone
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+        
+        // Default options
+        const defaultOptions = {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            timeZone: timezone
+        };
+        
+        // Merge with provided options
+        const formatOptions = { ...defaultOptions, ...options };
+        
+        const formatter = new Intl.DateTimeFormat('es-ES', formatOptions);
+        return formatter.format(date);
+        
+    } catch (error) {
+        console.warn('Error formateando fecha con zona horaria:', error);
+        // Fallback to simple format
+        return formatDate(dateString);
+    }
+}
+
+// Format date using professional's timezone
+async function formatDateWithTimezone(dateString) {
+    if (!dateString || dateString === 'Sin fecha') {
+        return 'Sin fecha';
+    }
+    
+    try {
+        // Get professional data to use their timezone
+        const profesional = await getProfesionalData();
+        const timezone = profesional?.timezone || 'UTC';
+        
+        console.log('🕐 Formateando fecha con zona horaria:', timezone);
+        
+        // Create date object and format using professional's timezone
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+        
+        // Format using professional's timezone
+        const formatter = new Intl.DateTimeFormat('es-ES', {
+            timeZone: timezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        return formatter.format(date);
+        
+    } catch (error) {
+        console.warn('Error formateando fecha con zona horaria:', error);
+        // Fallback to simple format
+        return formatDate(dateString);
+    }
+}
+
+// Format date to readable format (fallback)
+function formatDate(dateString) {
+    if (!dateString || dateString === 'Sin fecha') {
+        return 'Sin fecha';
+    }
+    
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+        
+        // Format as DD/MM/YYYY
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+    } catch (error) {
+        console.warn('Error formateando fecha:', error);
+        return 'Fecha inválida';
     }
 }
 
@@ -244,6 +531,2734 @@ function initTabs() {
     }
 }
 
+// Initialize antecedents tab
+function initAntecedentsTab() {
+    console.log('🚀 Initializing antecedents tab...');
+    
+    // Setup event listeners
+    setupAntecedentsEventListeners();
+    
+    // Load antecedents data
+    loadAntecedentsData();
+}
+
+// Setup event listeners for antecedents
+function setupAntecedentsEventListeners() {
+    // Edit antecedents button
+    const editBtn = document.getElementById('editAntecedentsBtn');
+    if (editBtn) {
+        editBtn.addEventListener('click', showEditAntecedentsModal);
+    }
+    
+    // Save antecedents button
+    const saveBtn = document.getElementById('saveAntecedentsBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveAntecedents);
+    }
+}
+
+// Load antecedents data
+async function loadAntecedentsData() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        
+        if (!patientId) {
+            console.warn('No patient ID found');
+            return;
+        }
+        
+        console.log('🔍 Loading antecedents for patient:', patientId);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+        
+        const response = await fetch(`/api/antecedentes/usuario/${patientId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.log('📝 No antecedents found for patient');
+                antecedentesData = null;
+                showAntecedentsEmptyState();
+                return;
+            }
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            antecedentesData = result.data;
+            console.log('✅ Antecedents loaded:', antecedentesData);
+            displayAntecedentsData(antecedentesData);
+        } else {
+            throw new Error('No antecedents data received');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading antecedents:', error);
+        showAntecedentsError('Error al cargar los antecedentes médicos');
+    } finally {
+        hideAntecedentsLoading();
+    }
+}
+
+// Display antecedents data
+function displayAntecedentsData(data) {
+    // Update display areas
+    updateAntecedentsDisplay('allergiesDisplay', data.alergias);
+    updateAntecedentsDisplay('medicationsDisplay', data.medicamentos_habituales);
+    updateAntecedentsDisplay('personalHistoryDisplay', data.antecedentes_personales);
+    updateAntecedentsDisplay('familyHistoryDisplay', data.antecedentes_familiares);
+    updateAntecedentsDisplay('surgeriesDisplay', data.cirugias);
+    
+    // Update patient data for summary
+    if (currentPatient) {
+        currentPatient.allergies = data.alergias || 'Ninguna conocida';
+        currentPatient.medications = data.medicamentos_habituales || 'Sin medicamentos';
+    }
+}
+
+// Update antecedents display
+function updateAntecedentsDisplay(elementId, content) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        if (content && content.trim()) {
+            element.innerHTML = `<div class="text-dark">${content.replace(/\n/g, '<br>')}</div>`;
+        } else {
+            element.innerHTML = '<span class="text-muted">Sin información registrada</span>';
+        }
+    }
+}
+
+// Show empty state
+function showAntecedentsEmptyState() {
+    updateAntecedentsDisplay('allergiesDisplay', '');
+    updateAntecedentsDisplay('medicationsDisplay', '');
+    updateAntecedentsDisplay('personalHistoryDisplay', '');
+    updateAntecedentsDisplay('familyHistoryDisplay', '');
+    updateAntecedentsDisplay('surgeriesDisplay', '');
+}
+
+// Show error state
+function showAntecedentsError(message) {
+    const displays = ['allergiesDisplay', 'medicationsDisplay', 'personalHistoryDisplay', 'familyHistoryDisplay', 'surgeriesDisplay'];
+    displays.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML = `<span class="text-danger">${message}</span>`;
+        }
+    });
+}
+
+// Hide loading state
+function hideAntecedentsLoading() {
+    const loading = document.getElementById('antecedentsLoading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+}
+
+// Show edit antecedents modal
+function showEditAntecedentsModal() {
+    console.log('📝 Opening edit antecedents modal');
+    
+    // Populate form with current data
+    if (antecedentesData) {
+        document.getElementById('allergiesInput').value = antecedentesData.alergias || '';
+        document.getElementById('medicationsInput').value = antecedentesData.medicamentos_habituales || '';
+        document.getElementById('personalHistoryInput').value = antecedentesData.antecedentes_personales || '';
+        document.getElementById('familyHistoryInput').value = antecedentesData.antecedentes_familiares || '';
+        document.getElementById('surgeriesInput').value = antecedentesData.cirugias || '';
+    } else {
+        // Clear form if no data
+        document.getElementById('allergiesInput').value = '';
+        document.getElementById('medicationsInput').value = '';
+        document.getElementById('personalHistoryInput').value = '';
+        document.getElementById('familyHistoryInput').value = '';
+        document.getElementById('surgeriesInput').value = '';
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editAntecedentsModal'));
+    modal.show();
+}
+
+// Save antecedents
+async function saveAntecedents() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        
+        if (!patientId) {
+            throw new Error('No patient ID found');
+        }
+        
+        const saveBtn = document.getElementById('saveAntecedentsBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+        
+        const antecedentsData = {
+            usuario_id: parseInt(patientId),
+            alergias: document.getElementById('allergiesInput').value.trim(),
+            medicamentos_habituales: document.getElementById('medicationsInput').value.trim(),
+            antecedentes_personales: document.getElementById('personalHistoryInput').value.trim(),
+            antecedentes_familiares: document.getElementById('familyHistoryInput').value.trim(),
+            cirugias: document.getElementById('surgeriesInput').value.trim()
+        };
+        
+        console.log('💾 Saving antecedents:', antecedentsData);
+        
+        const response = await fetch('/api/antecedentes', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(antecedentsData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Antecedents saved successfully');
+            showAlert('Antecedentes médicos guardados exitosamente', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editAntecedentsModal'));
+            if (modal) modal.hide();
+            
+            // Reload data
+            await loadAntecedentsData();
+            
+            // Update summary if on overview tab
+            if (currentPatient) {
+                updatePatientInfo(currentPatient);
+            }
+            
+        } else {
+            throw new Error(result.message || 'Error al guardar antecedentes');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error saving antecedents:', error);
+        showAlert('Error al guardar antecedentes: ' + error.message, 'error');
+    } finally {
+        const saveBtn = document.getElementById('saveAntecedentsBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar Antecedentes';
+    }
+}
+
+// Initialize laboratories tab
+function initLaboratoriesTab() {
+    console.log('🚀 Initializing laboratories tab...');
+    
+    // Setup event listeners
+    setupLaboratoriesEventListeners();
+    
+    // Load laboratories data
+    loadLaboratoriesData();
+}
+
+// Setup event listeners for laboratories
+function setupLaboratoriesEventListeners() {
+    // New laboratory button
+    const newBtn = document.getElementById('newLaboratoryBtn');
+    if (newBtn) {
+        newBtn.addEventListener('click', showNewLaboratoryModal);
+    }
+    
+    // Save laboratory button
+    const saveBtn = document.getElementById('saveLaboratoryBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveLaboratory);
+    }
+    
+    // Add result button
+    const addResultBtn = document.getElementById('addResultBtn');
+    if (addResultBtn) {
+        addResultBtn.addEventListener('click', addResultRow);
+    }
+    
+    // Clear validation errors on input
+    const formFields = ['laboratoryDate', 'laboratoryName', 'requestingDoctor', 'laboratoryNotes'];
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', () => {
+                field.classList.remove('is-invalid');
+                const errorMsg = field.parentNode.querySelector('.invalid-feedback');
+                if (errorMsg) errorMsg.remove();
+            });
+        }
+    });
+    
+    // Edit laboratory button
+    const editBtn = document.getElementById('editLaboratoryBtn');
+    if (editBtn) {
+        editBtn.addEventListener('click', editCurrentLaboratory);
+    }
+}
+
+// Load laboratories data
+async function loadLaboratoriesData() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        
+        if (!patientId) {
+            console.warn('No patient ID found');
+            return;
+        }
+        
+        console.log('🔍 Loading laboratories for patient:', patientId);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+        
+        const response = await fetch(`/api/laboratorios/usuario/${patientId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.log('📝 No laboratories found for patient');
+                laboratoriosData = [];
+                showLaboratoriesEmptyState();
+                return;
+            }
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            laboratoriosData = result.data;
+            console.log('✅ Laboratories loaded:', laboratoriosData);
+            
+            // Load analysis data directly
+            await loadAnalysisData();
+        } else {
+            throw new Error('No laboratories data received');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading laboratories:', error);
+        showLaboratoriesError('Error al cargar los estudios de laboratorio');
+    } finally {
+        hideLaboratoriesLoading();
+    }
+}
+
+// Display laboratories data
+function displayLaboratoriesData(data) {
+    const tbody = document.getElementById('laboratoriesTableBody');
+    const noStudiesRow = document.getElementById('noStudiesRow');
+    const tableContainer = document.querySelector('.table-responsive');
+    
+    if (!tbody) {
+        console.error('❌ laboratoriesTableBody not found');
+        return;
+    }
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        // Hide table and show empty state
+        if (tableContainer) tableContainer.style.display = 'none';
+        if (noStudiesRow) noStudiesRow.style.display = 'block';
+        return;
+    }
+    
+    // Show table and hide empty state
+    if (tableContainer) tableContainer.style.display = 'block';
+    if (noStudiesRow) noStudiesRow.style.display = 'none';
+    
+    // Sort by date (most recent first)
+    const sortedData = [...data].sort((a, b) => new Date(b.fecha_estudio) - new Date(a.fecha_estudio));
+    
+    // Render each laboratory
+    sortedData.forEach(async (laboratory, index) => {
+        const row = await createLaboratoryRow(laboratory);
+        tbody.appendChild(row);
+    });
+}
+
+// Create laboratory table row
+async function createLaboratoryRow(laboratory) {
+    const row = document.createElement('tr');
+    
+    // Format date using professional's timezone
+    const fechaFormatted = await formatDateWithTimezoneHelper(laboratory.fecha_estudio, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+    
+    // Count parameters
+    const paramCount = laboratory.resultados ? laboratory.resultados.length : 0;
+    
+    // Count abnormal values
+    const abnormalCount = laboratory.resultados ? 
+        laboratory.resultados.filter(r => r.estado !== 'normal').length : 0;
+    
+    // Status badge
+    let statusBadge = '';
+    if (abnormalCount === 0) {
+        statusBadge = '<span class="badge bg-success">Normal</span>';
+    } else if (abnormalCount === 1) {
+        statusBadge = '<span class="badge bg-warning">1 Anormal</span>';
+    } else {
+        statusBadge = `<span class="badge bg-danger">${abnormalCount} Anormales</span>`;
+    }
+    
+    row.innerHTML = `
+        <td>${fechaFormatted}</td>
+        <td>${laboratory.laboratorio || '--'}</td>
+        <td>${laboratory.medico_solicitante || '--'}</td>
+        <td>
+            <span class="badge bg-info">${paramCount} parámetros</span>
+        </td>
+        <td>${statusBadge}</td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="viewLaboratory(${laboratory.id})" title="Ver detalles">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="editLaboratory(${laboratory.id})" title="Editar">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-outline-danger" onclick="deleteLaboratory(${laboratory.id})" title="Eliminar">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    return row;
+}
+
+// Update laboratories statistics
+function updateLaboratoriesStats(data) {
+    if (!data || data.length === 0) {
+        document.getElementById('totalStudies').textContent = '0';
+        document.getElementById('lastStudy').textContent = '--';
+        document.getElementById('abnormalResults').textContent = '0';
+        document.getElementById('trackedParams').textContent = '0';
+        return;
+    }
+    
+    // Total studies
+    document.getElementById('totalStudies').textContent = data.length;
+    
+    // Last study date
+    const sortedData = [...data].sort((a, b) => new Date(b.fecha_estudio) - new Date(a.fecha_estudio));
+    const lastStudy = sortedData[0];
+    const lastDate = new Date(lastStudy.fecha_estudio);
+    const daysAgo = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+    document.getElementById('lastStudy').textContent = daysAgo === 0 ? 'Hoy' : `${daysAgo} días`;
+    
+    // Abnormal results count
+    const totalAbnormal = data.reduce((count, lab) => {
+        return count + (lab.resultados ? lab.resultados.filter(r => r.estado !== 'normal').length : 0);
+    }, 0);
+    document.getElementById('abnormalResults').textContent = totalAbnormal;
+    
+    // Tracked parameters (unique parameters across all studies)
+    const uniqueParams = new Set();
+    data.forEach(lab => {
+        if (lab.resultados) {
+            lab.resultados.forEach(result => {
+                uniqueParams.add(result.parametro);
+            });
+        }
+    });
+    document.getElementById('trackedParams').textContent = uniqueParams.size;
+}
+
+// Show empty state
+function showLaboratoriesEmptyState() {
+    const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+    const noAnalysisRow = document.getElementById('noAnalysisRow');
+    const tableContainer = document.querySelector('#laboratoriesAnalysisCard .table-responsive');
+    
+    if (!tbody) {
+        console.error('❌ laboratoriesAnalysisTableBody not found');
+        return;
+    }
+    
+    // Clear existing content
+    tbody.innerHTML = '';
+    
+    // Hide table and show empty state
+    if (tableContainer) tableContainer.style.display = 'none';
+    if (noAnalysisRow) noAnalysisRow.style.display = 'block';
+    
+    // Update laboratories statistics
+    updateLaboratoriesStats([]);
+}
+
+// Show error state
+function showLaboratoriesError(message) {
+    const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+    const noAnalysisRow = document.getElementById('noAnalysisRow');
+    const tableContainer = document.querySelector('#laboratoriesAnalysisCard .table-responsive');
+    
+    if (!tbody) {
+        console.error('❌ laboratoriesAnalysisTableBody not found');
+        return;
+    }
+    
+    // Hide empty state and show table with error
+    if (noAnalysisRow) noAnalysisRow.style.display = 'none';
+    if (tableContainer) tableContainer.style.display = 'block';
+    
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>${message}
+            </td>
+        </tr>
+    `;
+}
+
+// Hide loading state
+function hideLaboratoriesLoading() {
+    const loading = document.getElementById('laboratoriesLoading');
+    if (loading) {
+        loading.style.display = 'none';
+    }
+}
+
+// Show new laboratory modal
+function showNewLaboratoryModal() {
+    console.log('📝 Opening new laboratory modal');
+    
+    // Clear form
+    document.getElementById('laboratoryDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('laboratoryName').value = '';
+    document.getElementById('requestingDoctor').value = '';
+    document.getElementById('laboratoryNotes').value = '';
+    
+    // Clear results container
+    document.getElementById('resultsContainer').innerHTML = '';
+    
+    // Add one initial result row
+    addResultRow();
+    
+    // Update modal title
+    const modalTitle = document.querySelector('#laboratoryModal .modal-title');
+    if (modalTitle) {
+        modalTitle.innerHTML = '<i class="fas fa-flask me-2"></i>Nuevo Estudio de Laboratorio';
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('laboratoryModal'));
+    modal.show();
+}
+
+// Add result row
+function addResultRow() {
+    const container = document.getElementById('resultsContainer');
+    const rowId = `result_${Date.now()}`;
+    
+    const resultRow = document.createElement('div');
+    resultRow.className = 'result-row border rounded p-3 mb-3';
+    resultRow.id = rowId;
+    
+    resultRow.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">Parámetro *</label>
+                    <input type="text" class="form-control" name="parametro" required 
+                           placeholder="Ej: Glucosa, Colesterol...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Valor *</label>
+                    <input type="number" class="form-control" name="valor" step="0.001" required 
+                           placeholder="0.000">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Unidad</label>
+                    <input type="text" class="form-control" name="unidad" 
+                           placeholder="mg/dL, g/L...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Min Normal</label>
+                    <input type="number" class="form-control" name="valor_referencia_min" step="0.001">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="mb-3">
+                    <label class="form-label">Max Normal</label>
+                    <input type="number" class="form-control" name="valor_referencia_max" step="0.001">
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="mb-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100" 
+                            onclick="removeResultRow('${rowId}')" title="Eliminar">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div class="mb-3">
+                    <label class="form-label">Observaciones</label>
+                    <textarea class="form-control" name="observaciones" rows="1" 
+                              placeholder="Observaciones adicionales..."></textarea>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(resultRow);
+}
+
+// Remove result row
+function removeResultRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.remove();
+    }
+}
+
+// Save laboratory
+async function saveLaboratory() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        
+        if (!patientId) {
+            throw new Error('No patient ID found');
+        }
+        
+        const saveBtn = document.getElementById('saveLaboratoryBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Guardando...';
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+        
+        // Validate form before collecting data
+        const validationResult = validateLaboratoryForm();
+        if (!validationResult.isValid) {
+            showFormValidationErrors(validationResult.errors);
+            return;
+        }
+        
+        // Get professional ID from token
+        const professionalId = getProfessionalIdFromToken(token);
+        if (!professionalId) {
+            throw new Error('No professional ID found');
+        }
+        
+        // Collect form data
+        const laboratoryData = {
+            usuario_id: parseInt(patientId),
+            profesional_id: professionalId,
+            fecha_estudio: document.getElementById('laboratoryDate').value,
+            laboratorio: document.getElementById('laboratoryName').value.trim(),
+            medico_solicitante: document.getElementById('requestingDoctor').value.trim(),
+            notas: document.getElementById('laboratoryNotes').value.trim(),
+            resultados: collectResultsData()
+        };
+        
+        console.log('💾 Saving laboratory:', laboratoryData);
+        console.log('🔍 Current editing laboratory:', currentEditingLaboratory);
+        
+        const url = currentEditingLaboratory ? 
+            `/api/laboratorios/${currentEditingLaboratory.id}` : 
+            '/api/laboratorios';
+        
+        const method = currentEditingLaboratory ? 'PUT' : 'POST';
+        
+        console.log('🌐 Request details:', { url, method, isEditing: !!currentEditingLaboratory });
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(laboratoryData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Error desconocido' }));
+            console.error('❌ Server error:', {
+                status: response.status,
+                statusText: response.statusText,
+                url: url,
+                method: method,
+                errorData: errorData
+            });
+            
+            if (response.status === 404) {
+                if (currentEditingLaboratory) {
+                    // Store the ID before clearing
+                    const deletedId = currentEditingLaboratory.id;
+                    // Clear editing state and reset form for new creation
+                    currentEditingLaboratory = null;
+                    resetLaboratoryForm();
+                    showAlert(`El estudio de laboratorio con ID ${deletedId} no existe. Puede haber sido eliminado. El formulario se ha reiniciado para crear un nuevo estudio.`, 'warning');
+                    return; // Exit function to prevent further processing
+                } else {
+                    throw new Error('La ruta del servidor no fue encontrada. Por favor, verifique su conexión.');
+                }
+            } else if (response.status === 400) {
+                throw new Error(errorData.message || 'Datos inválidos. Por favor, verifique la información ingresada.');
+            } else if (response.status === 401) {
+                throw new Error('Sesión expirada. Por favor, inicie sesión nuevamente.');
+            } else if (response.status === 403) {
+                throw new Error('No tiene permisos para realizar esta acción.');
+            } else {
+                throw new Error(errorData.message || `Error del servidor: ${response.status} ${response.statusText}`);
+            }
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Laboratory saved successfully');
+            showAlert('Estudio de laboratorio guardado exitosamente', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('laboratoryModal'));
+            if (modal) modal.hide();
+            
+            // Reload data
+            await loadLaboratoriesData();
+            
+        } else {
+            throw new Error(result.message || 'Error al guardar estudio');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error saving laboratory:', error);
+        showAlert('Error al guardar estudio: ' + error.message, 'error');
+    } finally {
+        const saveBtn = document.getElementById('saveLaboratoryBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar Estudio';
+    }
+}
+
+// Validate laboratory form
+function validateLaboratoryForm() {
+    const errors = [];
+    
+    // Validate required fields
+    const fechaEstudio = document.getElementById('laboratoryDate').value;
+    if (!fechaEstudio) {
+        errors.push({
+            field: 'laboratoryDate',
+            message: 'La fecha del estudio es requerida'
+        });
+    } else {
+        // Validate date is not in the future
+        const studyDate = new Date(fechaEstudio);
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // End of today
+        
+        if (studyDate > today) {
+            errors.push({
+                field: 'laboratoryDate',
+                message: 'La fecha del estudio no puede ser futura'
+            });
+        }
+        
+        // Validate date is not too old (more than 10 years)
+        const tenYearsAgo = new Date();
+        tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+        
+        if (studyDate < tenYearsAgo) {
+            errors.push({
+                field: 'laboratoryDate',
+                message: 'La fecha del estudio no puede ser anterior a 10 años'
+            });
+        }
+    }
+    
+    // Validate laboratory name
+    const laboratoryName = document.getElementById('laboratoryName').value.trim();
+    if (!laboratoryName) {
+        errors.push({
+            field: 'laboratoryName',
+            message: 'El nombre del laboratorio es requerido'
+        });
+    } else if (laboratoryName.length < 2) {
+        errors.push({
+            field: 'laboratoryName',
+            message: 'El nombre del laboratorio debe tener al menos 2 caracteres'
+        });
+    }
+    
+    // Validate requesting doctor
+    const requestingDoctor = document.getElementById('requestingDoctor').value.trim();
+    if (!requestingDoctor) {
+        errors.push({
+            field: 'requestingDoctor',
+            message: 'El médico solicitante es requerido'
+        });
+    } else if (requestingDoctor.length < 2) {
+        errors.push({
+            field: 'requestingDoctor',
+            message: 'El nombre del médico debe tener al menos 2 caracteres'
+        });
+    }
+    
+    // Validate results
+    const results = collectResultsData();
+    if (results.length === 0) {
+        errors.push({
+            field: 'results',
+            message: 'Debe agregar al menos un resultado de laboratorio'
+        });
+    } else {
+        // Validate each result
+        results.forEach((result, index) => {
+            if (!result.parametro || result.parametro.trim().length < 2) {
+                errors.push({
+                    field: `result_${index}_parametro`,
+                    message: `El parámetro ${index + 1} es requerido y debe tener al menos 2 caracteres`
+                });
+            }
+            
+            if (!result.valor || result.valor.toString().trim() === '') {
+                errors.push({
+                    field: `result_${index}_valor`,
+                    message: `El valor del parámetro ${index + 1} es requerido`
+                });
+            } else {
+                // Validate numeric values
+                const numericValue = parseFloat(result.valor);
+                if (isNaN(numericValue)) {
+                    errors.push({
+                        field: `result_${index}_valor`,
+                        message: `El valor del parámetro ${index + 1} debe ser numérico`
+                    });
+                } else if (numericValue < 0) {
+                    errors.push({
+                        field: `result_${index}_valor`,
+                        message: `El valor del parámetro ${index + 1} no puede ser negativo`
+                    });
+                }
+            }
+            
+            // Validate reference ranges if provided
+            if (result.valor_referencia_min && result.valor_referencia_max) {
+                const minVal = parseFloat(result.valor_referencia_min);
+                const maxVal = parseFloat(result.valor_referencia_max);
+                
+                if (isNaN(minVal) || isNaN(maxVal)) {
+                    errors.push({
+                        field: `result_${index}_range`,
+                        message: `Los valores de referencia del parámetro ${index + 1} deben ser numéricos`
+                    });
+                } else if (minVal >= maxVal) {
+                    errors.push({
+                        field: `result_${index}_range`,
+                        message: `El valor mínimo de referencia debe ser menor al máximo para el parámetro ${index + 1}`
+                    });
+                }
+            }
+        });
+    }
+    
+    return {
+        isValid: errors.length === 0,
+        errors: errors
+    };
+}
+
+// Show form validation errors
+function showFormValidationErrors(errors) {
+    // Clear previous error styling
+    clearFormValidationErrors();
+    
+    // Show errors
+    errors.forEach(error => {
+        if (error.field === 'results') {
+            // Show general results error
+            showAlert(error.message, 'warning');
+        } else if (error.field.startsWith('result_')) {
+            // Show result-specific error
+            const parts = error.field.split('_');
+            const resultIndex = parseInt(parts[1]);
+            const fieldType = parts[2];
+            
+            if (fieldType === 'parametro') {
+                const parametroInput = document.querySelector(`input[name="parametro_${resultIndex}"]`);
+                if (parametroInput) {
+                    parametroInput.classList.add('is-invalid');
+                    showFieldError(parametroInput, error.message);
+                }
+            } else if (fieldType === 'valor') {
+                const valorInput = document.querySelector(`input[name="valor_${resultIndex}"]`);
+                if (valorInput) {
+                    valorInput.classList.add('is-invalid');
+                    showFieldError(valorInput, error.message);
+                }
+            } else if (fieldType === 'range') {
+                const minInput = document.querySelector(`input[name="valor_referencia_min_${resultIndex}"]`);
+                const maxInput = document.querySelector(`input[name="valor_referencia_max_${resultIndex}"]`);
+                if (minInput) minInput.classList.add('is-invalid');
+                if (maxInput) maxInput.classList.add('is-invalid');
+                showAlert(error.message, 'warning');
+            }
+        } else {
+            // Show field-specific error
+            const field = document.getElementById(error.field);
+            if (field) {
+                field.classList.add('is-invalid');
+                showFieldError(field, error.message);
+            }
+        }
+    });
+    
+    // Scroll to first error
+    const firstErrorField = document.querySelector('.is-invalid');
+    if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstErrorField.focus();
+    }
+}
+
+// Clear form validation errors
+function clearFormValidationErrors() {
+    // Remove error styling from all fields
+    document.querySelectorAll('.is-invalid').forEach(field => {
+        field.classList.remove('is-invalid');
+    });
+    
+    // Remove error messages
+    document.querySelectorAll('.invalid-feedback').forEach(msg => {
+        msg.remove();
+    });
+}
+
+// Show field error message
+function showFieldError(field, message) {
+    // Remove existing error message
+    const existingError = field.parentNode.querySelector('.invalid-feedback');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Add new error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'invalid-feedback';
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+}
+
+// Collect results data from form
+function collectResultsData() {
+    const results = [];
+    const resultRows = document.querySelectorAll('.result-row');
+    
+    resultRows.forEach(row => {
+        const parametro = row.querySelector('[name="parametro"]').value.trim();
+        const valor = parseFloat(row.querySelector('[name="valor"]').value);
+        const unidad = row.querySelector('[name="unidad"]').value.trim();
+        const valorMin = parseFloat(row.querySelector('[name="valor_referencia_min"]').value) || null;
+        const valorMax = parseFloat(row.querySelector('[name="valor_referencia_max"]').value) || null;
+        const observaciones = row.querySelector('[name="observaciones"]').value.trim();
+        
+        if (parametro && !isNaN(valor)) {
+            // Determine status based on reference values
+            let estado = 'normal';
+            if (valorMin !== null && valorMax !== null) {
+                if (valor < valorMin) estado = 'bajo';
+                else if (valor > valorMax) estado = 'alto';
+            }
+            
+            results.push({
+                parametro,
+                valor,
+                unidad: unidad || null,
+                valor_referencia_min: valorMin,
+                valor_referencia_max: valorMax,
+                estado,
+                observaciones: observaciones || null
+            });
+        }
+    });
+    
+    return results;
+}
+
+// Get professional ID from token
+function getProfessionalIdFromToken(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.id;
+    } catch (error) {
+        console.error('Error parsing token:', error);
+        return null;
+    }
+}
+
+// View laboratory details
+async function viewLaboratory(laboratoryId) {
+    try {
+        console.log('👁️ Viewing laboratory:', laboratoryId);
+        
+        const laboratory = laboratoriosData.find(lab => lab.id === laboratoryId);
+        if (!laboratory) {
+            throw new Error('Estudio no encontrado');
+        }
+        
+        // Populate view modal
+        document.getElementById('viewLaboratoryDate').textContent = 
+            await formatDateWithTimezoneHelper(laboratory.fecha_estudio);
+        document.getElementById('viewLaboratoryName').textContent = 
+            laboratory.laboratorio || 'No especificado';
+        document.getElementById('viewRequestingDoctor').textContent = 
+            laboratory.medico_solicitante || 'No especificado';
+        document.getElementById('viewLaboratoryNotes').textContent = 
+            laboratory.notas || 'Sin observaciones';
+        
+        // Populate results table
+        const tbody = document.getElementById('viewResultsTableBody');
+        tbody.innerHTML = '';
+        
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                const row = document.createElement('tr');
+                
+                // Status badge
+                let statusBadge = '';
+                switch (result.estado) {
+                    case 'normal':
+                        statusBadge = '<span class="badge bg-success">Normal</span>';
+                        break;
+                    case 'alto':
+                        statusBadge = '<span class="badge bg-danger">Alto</span>';
+                        break;
+                    case 'bajo':
+                        statusBadge = '<span class="badge bg-warning">Bajo</span>';
+                        break;
+                    case 'critico':
+                        statusBadge = '<span class="badge bg-dark">Crítico</span>';
+                        break;
+                    default:
+                        statusBadge = '<span class="badge bg-secondary">--</span>';
+                }
+                
+                const rangeText = (result.valor_referencia_min && result.valor_referencia_max) ?
+                    `${result.valor_referencia_min} - ${result.valor_referencia_max}` : '--';
+                
+                row.innerHTML = `
+                    <td><strong>${result.parametro}</strong></td>
+                    <td>${result.valor}</td>
+                    <td>${result.unidad || '--'}</td>
+                    <td>${rangeText}</td>
+                    <td>${statusBadge}</td>
+                    <td>${result.observaciones || '--'}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-3">
+                        No hay resultados registrados
+                    </td>
+                </tr>
+            `;
+        }
+        
+        // Store current laboratory for editing
+        currentEditingLaboratory = laboratory;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('viewLaboratoryModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('❌ Error viewing laboratory:', error);
+        showAlert('Error al cargar detalles del estudio: ' + error.message, 'error');
+    }
+}
+
+// Check if laboratory exists before editing
+async function checkLaboratoryExists(laboratoryId) {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return false;
+        
+        const response = await fetch(`/api/laboratorios/${laboratoryId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        return response.ok;
+    } catch (error) {
+        console.warn('Error checking laboratory existence:', error);
+        return false;
+    }
+}
+
+// Edit laboratory
+async function editLaboratory(laboratoryId) {
+    try {
+        console.log('✏️ Editing laboratory:', laboratoryId);
+        
+        // Check if laboratory exists before proceeding
+        const exists = await checkLaboratoryExists(laboratoryId);
+        if (!exists) {
+            showAlert('El estudio de laboratorio no existe o ha sido eliminado.', 'warning');
+            // Reload data to refresh the list
+            await loadLaboratoriesData();
+            return;
+        }
+        
+        const laboratory = laboratoriosData.find(lab => lab.id === laboratoryId);
+        if (!laboratory) {
+            throw new Error('Estudio no encontrado en los datos locales');
+        }
+        
+        // Store current laboratory for editing
+        currentEditingLaboratory = laboratory;
+        
+        // Populate form
+        const formattedDate = await formatDateForInput(laboratory.fecha_estudio);
+        document.getElementById('laboratoryDate').value = formattedDate;
+        document.getElementById('laboratoryName').value = laboratory.laboratorio || '';
+        document.getElementById('requestingDoctor').value = laboratory.medico_solicitante || '';
+        document.getElementById('laboratoryNotes').value = laboratory.notas || '';
+        
+        // Clear and populate results
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = '';
+        
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                addResultRow();
+                const lastRow = container.lastElementChild;
+                
+                lastRow.querySelector('[name="parametro"]').value = result.parametro;
+                lastRow.querySelector('[name="valor"]').value = result.valor;
+                lastRow.querySelector('[name="unidad"]').value = result.unidad || '';
+                lastRow.querySelector('[name="valor_referencia_min"]').value = result.valor_referencia_min || '';
+                lastRow.querySelector('[name="valor_referencia_max"]').value = result.valor_referencia_max || '';
+                lastRow.querySelector('[name="observaciones"]').value = result.observaciones || '';
+            });
+        } else {
+            addResultRow();
+        }
+        
+        // Update modal title
+        const modalTitle = document.querySelector('#laboratoryModal .modal-title');
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="fas fa-edit me-2"></i>Editar Estudio de Laboratorio';
+        }
+        
+        // Close view modal if open
+        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewLaboratoryModal'));
+        if (viewModal) viewModal.hide();
+        
+        // Show edit modal
+        const modal = new bootstrap.Modal(document.getElementById('laboratoryModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('❌ Error editing laboratory:', error);
+        showAlert('Error al cargar estudio para edición: ' + error.message, 'error');
+    }
+}
+
+// Edit current laboratory (from view modal)
+function editCurrentLaboratory() {
+    if (currentEditingLaboratory) {
+        editLaboratory(currentEditingLaboratory.id);
+    }
+}
+
+// Delete laboratory
+async function deleteLaboratory(laboratoryId) {
+    try {
+        if (!confirm('¿Está seguro de que desea eliminar este estudio de laboratorio?')) {
+            return;
+        }
+        
+        console.log('🗑️ Deleting laboratory:', laboratoryId);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+        
+        const response = await fetch(`/api/laboratorios/${laboratoryId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Laboratory deleted successfully');
+            showAlert('Estudio de laboratorio eliminado exitosamente', 'success');
+            
+            // Reload data
+            await loadLaboratoriesData();
+            
+        } else {
+            throw new Error(result.message || 'Error al eliminar estudio');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error deleting laboratory:', error);
+        showAlert('Error al eliminar estudio: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// LABORATORIES ANALYSIS FUNCTIONS
+// ========================================
+
+// Load studies data (studies table instead of individual analysis)
+async function loadAnalysisData() {
+    try {
+        const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+        const noAnalysisRow = document.getElementById('noAnalysisRow');
+        
+        if (!tbody) {
+            console.error('❌ laboratoriesAnalysisTableBody not found');
+            return;
+        }
+        
+        // Clear previous data
+        tbody.innerHTML = '';
+        
+        if (!laboratoriosData || laboratoriosData.length === 0) {
+            showLaboratoriesEmptyState();
+            return;
+        }
+        
+        console.log('📊 Loading studies data...');
+        
+        // Sort studies by date (most recent first)
+        const sortedStudies = [...laboratoriosData].sort((a, b) => new Date(b.fecha_estudio) - new Date(a.fecha_estudio));
+        
+        // Create rows for each study
+        for (const study of sortedStudies) {
+            const row = await createStudyRow(study);
+            tbody.appendChild(row);
+        }
+        
+        // Hide empty state
+        if (noAnalysisRow) {
+            noAnalysisRow.style.display = 'none';
+        }
+        
+        // Update statistics
+        updateLaboratoriesStats(laboratoriosData);
+        
+        // Setup table event listeners
+        setupAnalysisTableEventListeners();
+        
+    } catch (error) {
+        console.error('❌ Error loading studies data:', error);
+        showLaboratoriesError(error.message);
+    }
+}
+
+// Create study row
+async function createStudyRow(study) {
+    const row = document.createElement('tr');
+    
+    // Format date using professional's timezone
+    const fechaFormatted = await formatDateWithTimezoneHelper(study.fecha_estudio, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+    
+    // Count parameters and abnormal values
+    const totalParams = study.resultados ? study.resultados.length : 0;
+    const abnormalParams = study.resultados ? study.resultados.filter(r => r.estado !== 'normal').length : 0;
+    
+    // Create parameter summary
+    let parameterSummary = `${totalParams} parámetro${totalParams !== 1 ? 's' : ''}`;
+    if (abnormalParams > 0) {
+        parameterSummary += ` (${abnormalParams} anormal${abnormalParams !== 1 ? 'es' : ''})`;
+    }
+    
+    // Create abnormal values summary
+    let abnormalSummary = '';
+    if (abnormalParams > 0) {
+        const abnormalResults = study.resultados.filter(r => r.estado !== 'normal');
+        abnormalSummary = abnormalResults.map(r => `${r.parametro}: ${r.valor}`).join(', ');
+        if (abnormalSummary.length > 50) {
+            abnormalSummary = abnormalSummary.substring(0, 50) + '...';
+        }
+    } else {
+        abnormalSummary = 'Todos normales';
+    }
+    
+    // Actions buttons
+    const actionsHtml = `
+        <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-info btn-sm" onclick="viewLaboratory(${study.id})" title="Ver estudio completo">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-outline-warning btn-sm" onclick="editLaboratory(${study.id})" title="Editar estudio">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteLaboratory(${study.id})" title="Eliminar estudio">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    // Notes preview
+    const notesPreview = study.notas ? 
+        (study.notas.length > 30 ? study.notas.substring(0, 30) + '...' : study.notas) : 
+        '--';
+    
+    row.innerHTML = `
+        <td>${fechaFormatted}</td>
+        <td><strong>${study.laboratorio || '--'}</strong></td>
+        <td>${study.medico_solicitante || '--'}</td>
+        <td>
+            <span class="badge ${abnormalParams > 0 ? 'bg-warning' : 'bg-success'}">
+                ${parameterSummary}
+            </span>
+        </td>
+        <td>
+            <small class="${abnormalParams > 0 ? 'text-danger' : 'text-success'}">
+                ${abnormalSummary}
+            </small>
+        </td>
+        <td>
+            <small class="text-muted">${notesPreview}</small>
+        </td>
+        <td>${actionsHtml}</td>
+    `;
+    
+    return row;
+}
+
+// Setup event listeners for analysis table
+function setupAnalysisTableEventListeners() {
+    // Search analysis
+    const searchAnalysis = document.getElementById('searchAnalysis');
+    if (searchAnalysis) {
+        searchAnalysis.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                filterStudiesTable();
+            }
+        });
+    }
+    
+    // Search button
+    const searchAnalysisBtn = document.getElementById('searchAnalysisBtn');
+    if (searchAnalysisBtn) {
+        searchAnalysisBtn.addEventListener('click', filterStudiesTable);
+    }
+    
+    // Clear filters button
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearStudiesFilters);
+    }
+    
+    // Export analysis button
+    const exportBtn = document.getElementById('exportAnalysisBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportAnalysisData);
+    }
+    
+    // Compare analysis button
+    const compareBtn = document.getElementById('compareAnalysisBtn');
+    if (compareBtn) {
+        compareBtn.addEventListener('click', showCompareAnalysisModal);
+    }
+}
+
+// Filter studies table
+function filterStudiesTable() {
+    const searchTerm = document.getElementById('searchAnalysis').value.toLowerCase();
+    const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+    
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Clear studies filters
+function clearStudiesFilters() {
+    const searchInput = document.getElementById('searchAnalysis');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // Show all rows
+    const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+    if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+}
+function buildAnalysisData() {
+    const analysisData = [];
+    
+    laboratoriosData.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                analysisData.push({
+                    fecha: laboratory.fecha_estudio,
+                    laboratorio: laboratory.laboratorio || 'No especificado',
+                    parametro: result.parametro,
+                    valor: result.valor,
+                    unidad: result.unidad || '--',
+                    valor_referencia_min: result.valor_referencia_min,
+                    valor_referencia_max: result.valor_referencia_max,
+                    estado: result.estado,
+                    observaciones: result.observaciones || '--',
+                    laboratorio_id: laboratory.id
+                });
+            });
+        }
+    });
+    
+    return analysisData;
+}
+
+// Populate parameter filter dropdown
+function populateParameterFilter(analysisData) {
+    const parameterFilter = document.getElementById('parameterFilter');
+    if (!parameterFilter) return;
+    
+    // Get unique parameters
+    const uniqueParams = [...new Set(analysisData.map(item => item.parametro))].sort();
+    
+    // Clear existing options (except first one)
+    parameterFilter.innerHTML = '<option value="">Todos los parámetros</option>';
+    
+    // Add parameter options
+    uniqueParams.forEach(param => {
+        const option = document.createElement('option');
+        option.value = param;
+        option.textContent = param;
+        parameterFilter.appendChild(option);
+    });
+}
+
+// Display analysis data
+async function displayAnalysisData(data) {
+    const tbody = document.getElementById('laboratoriesAnalysisTableBody');
+    const noAnalysisRow = document.getElementById('noAnalysisRow');
+    const tableContainer = document.querySelector('#laboratoriesAnalysisCard .table-responsive');
+    
+    if (!tbody) {
+        console.error('❌ laboratoriesAnalysisTableBody not found');
+        return;
+    }
+    
+    // Clear existing rows
+    tbody.innerHTML = '';
+    
+    if (!data || data.length === 0) {
+        // Hide table and show empty state
+        if (tableContainer) tableContainer.style.display = 'none';
+        if (noAnalysisRow) noAnalysisRow.style.display = 'block';
+        return;
+    }
+    
+    // Show table and hide empty state
+    if (tableContainer) tableContainer.style.display = 'block';
+    if (noAnalysisRow) noAnalysisRow.style.display = 'none';
+    
+    // Sort data by date (most recent first)
+    const sortedData = [...data].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    // Render each analysis
+    for (const analysis of sortedData) {
+        const row = await createAnalysisRow(analysis);
+        tbody.appendChild(row);
+    }
+}
+
+// Create analysis table row
+async function createAnalysisRow(analysis) {
+    const row = document.createElement('tr');
+    
+    // Format date using professional's timezone
+    const fechaFormatted = await formatDateWithTimezoneHelper(analysis.fecha, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+    
+    // Status badge
+    let statusBadge = '';
+    switch (analysis.estado) {
+        case 'normal':
+            statusBadge = '<span class="badge bg-success">Normal</span>';
+            break;
+        case 'alto':
+            statusBadge = '<span class="badge bg-danger">Alto</span>';
+            break;
+        case 'bajo':
+            statusBadge = '<span class="badge bg-warning">Bajo</span>';
+            break;
+        case 'critico':
+            statusBadge = '<span class="badge bg-dark">Crítico</span>';
+            break;
+        default:
+            statusBadge = '<span class="badge bg-secondary">--</span>';
+    }
+    
+    // Range text
+    const rangeText = (analysis.valor_referencia_min && analysis.valor_referencia_max) ?
+        `${analysis.valor_referencia_min} - ${analysis.valor_referencia_max}` : '--';
+    
+    // Value with highlighting for abnormal values
+    let valueClass = '';
+    if (analysis.estado !== 'normal') {
+        valueClass = analysis.estado === 'alto' ? 'text-danger fw-bold' : 
+                    analysis.estado === 'bajo' ? 'text-warning fw-bold' : 
+                    'text-dark fw-bold';
+    }
+    
+    // Actions buttons
+    const actionsHtml = `
+        <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-info btn-sm" onclick="viewLaboratory(${analysis.laboratorio_id})" title="Ver estudio completo">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-outline-warning btn-sm" onclick="editLaboratory(${analysis.laboratorio_id})" title="Editar estudio">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="deleteLaboratory(${analysis.laboratorio_id})" title="Eliminar estudio">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+
+    row.innerHTML = `
+        <td>${fechaFormatted}</td>
+        <td>${analysis.laboratorio}</td>
+        <td><strong>${analysis.parametro}</strong></td>
+        <td class="${valueClass}">${analysis.valor}</td>
+        <td>${analysis.unidad}</td>
+        <td>${rangeText}</td>
+        <td>${statusBadge}</td>
+        <td>${analysis.observaciones}</td>
+        <td>${actionsHtml}</td>
+    `;
+    
+    return row;
+}
+
+// Filter analysis table
+
+
+
+// Update laboratories statistics
+function updateLaboratoriesStats(data) {
+    if (!data || data.length === 0) {
+        document.getElementById('totalStudies').textContent = '0';
+        document.getElementById('lastStudy').textContent = '--';
+        document.getElementById('abnormalResults').textContent = '0';
+        document.getElementById('trackedParams').textContent = '0';
+        return;
+    }
+    
+    // Total studies
+    document.getElementById('totalStudies').textContent = data.length;
+    
+    // Last study date
+    const sortedByDate = [...data].sort((a, b) => new Date(b.fecha_estudio) - new Date(a.fecha_estudio));
+    if (sortedByDate.length > 0) {
+        const lastDate = new Date(sortedByDate[0].fecha_estudio);
+        const daysAgo = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('lastStudy').textContent = daysAgo === 0 ? 'Hoy' : `${daysAgo} días`;
+    } else {
+        document.getElementById('lastStudy').textContent = '--';
+    }
+    
+    // Abnormal results count
+    let abnormalCount = 0;
+    data.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            abnormalCount += laboratory.resultados.filter(result => result.estado !== 'normal').length;
+        }
+    });
+    document.getElementById('abnormalResults').textContent = abnormalCount;
+    
+    // Tracked parameters count
+    const uniqueParams = new Set();
+    data.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                uniqueParams.add(result.parametro);
+            });
+        }
+    });
+    document.getElementById('trackedParams').textContent = uniqueParams.size;
+}
+
+// ========================================
+// LABORATORY COMPARISON FUNCTIONS
+// ========================================
+
+// Show compare analysis modal
+function showCompareAnalysisModal() {
+    console.log('🔍 Opening compare analysis modal...');
+    
+    // Check if we have enough data for comparison
+    if (!laboratoriosData || laboratoriosData.length < 2) {
+        showAlert('Se necesitan al menos 2 estudios de laboratorio para realizar una comparación', 'warning');
+        return;
+    }
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('compareAnalysisModal'));
+    modal.show();
+    
+    // Load automatic comparison
+    loadAutomaticComparison();
+    
+    // Setup modal event listeners
+    setupCompareModalEventListeners();
+}
+
+// Load automatic comparison when there are multiple studies
+async function loadAutomaticComparison() {
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv || !laboratoriosData) return;
+    
+    // Show loading state
+    contentDiv.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Preparando comparación de estudios...</p>
+        </div>
+    `;
+    
+    try {
+        // Display side-by-side study comparison
+        await displayStudyComparison();
+        
+        // Enable export button
+        const exportBtn = document.getElementById('exportComparisonBtn');
+        if (exportBtn) {
+            exportBtn.disabled = false;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading study comparison:', error);
+        showCompareError(error.message);
+    }
+}
+
+// Find common parameters between all studies
+function findCommonParameters() {
+    if (!laboratoriosData || laboratoriosData.length < 2) return [];
+    
+    // Get all parameters from all studies
+    const allParameters = [];
+    laboratoriosData.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                allParameters.push(result.parametro);
+            });
+        }
+    });
+    
+    // Count occurrences of each parameter
+    const parameterCount = {};
+    allParameters.forEach(param => {
+        parameterCount[param] = (parameterCount[param] || 0) + 1;
+    });
+    
+    // Find parameters that appear in multiple studies
+    const commonParameters = Object.keys(parameterCount)
+        .filter(param => parameterCount[param] > 1)
+        .sort();
+    
+    return commonParameters;
+}
+
+// Display side-by-side study comparison
+async function displayStudyComparison() {
+    const contentDiv = document.getElementById('compareContent');
+    
+    // Sort studies by date (most recent first)
+    const sortedStudies = [...laboratoriosData].sort((a, b) => new Date(b.fecha_estudio) - new Date(a.fecha_estudio));
+    
+    let html = `
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-balance-scale me-2"></i>Comparación de Estudios de Laboratorio
+                </h6>
+                <small class="text-muted">Comparando ${sortedStudies.length} estudios</small>
+            </div>
+            <div class="card-body">
+    `;
+    
+    // Create study comparison cards
+    html += '<div class="row">';
+    
+    for (let i = 0; i < sortedStudies.length; i++) {
+        const study = sortedStudies[i];
+        const isLatest = i === 0;
+        
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 ${isLatest ? 'border-primary' : 'border-secondary'}">
+                    <div class="card-header ${isLatest ? 'bg-primary text-white' : 'bg-secondary text-white'}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-flask me-2"></i>
+                                ${isLatest ? 'Estudio Más Reciente' : `Estudio ${i + 1}`}
+                            </h6>
+                            <span class="badge ${isLatest ? 'bg-light text-primary' : 'bg-light text-secondary'}">
+                                ${await formatDateWithTimezoneHelper(study.fecha_estudio, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                })}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <strong>Laboratorio:</strong><br>
+                                <span class="text-muted">${study.laboratorio || '--'}</span>
+                            </div>
+                            <div class="col-6">
+                                <strong>Médico Solicitante:</strong><br>
+                                <span class="text-muted">${study.medico_solicitante || '--'}</span>
+                            </div>
+                        </div>
+                        
+                        ${study.notas ? `
+                            <div class="mb-3">
+                                <strong>Notas:</strong><br>
+                                <span class="text-muted">${study.notas}</span>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="mb-3">
+                            <strong>Resumen de Resultados:</strong>
+                            <div class="mt-2">
+                                ${createStudySummary(study)}
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Parámetro</th>
+                                        <th>Valor</th>
+                                        <th>Unidad</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${createStudyResultsRows(study)}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>'; // Close row
+    
+    // Add comparison summary
+    html += `
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-chart-line me-2"></i>Resumen de Comparación</h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Total de estudios:</strong> ${sortedStudies.length}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Período:</strong> ${await formatDateWithTimezoneHelper(sortedStudies[sortedStudies.length-1].fecha_estudio, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            })} - ${await formatDateWithTimezoneHelper(sortedStudies[0].fecha_estudio, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            })}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Parámetros únicos:</strong> ${getUniqueParametersCount(sortedStudies)}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Valores anormales:</strong> ${getAbnormalValuesCount(sortedStudies)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    contentDiv.innerHTML = html;
+}
+
+// Create study summary with key statistics
+function createStudySummary(study) {
+    if (!study.resultados || study.resultados.length === 0) {
+        return '<span class="text-muted">Sin resultados</span>';
+    }
+    
+    const totalParams = study.resultados.length;
+    const abnormalParams = study.resultados.filter(r => r.estado !== 'normal').length;
+    const criticalParams = study.resultados.filter(r => r.estado === 'critico').length;
+    
+    let summary = `
+        <div class="row">
+            <div class="col-4">
+                <span class="badge bg-info">${totalParams} parámetros</span>
+            </div>
+            <div class="col-4">
+                <span class="badge ${abnormalParams > 0 ? 'bg-warning' : 'bg-success'}">
+                    ${abnormalParams} anormales
+                </span>
+            </div>
+            <div class="col-4">
+                <span class="badge ${criticalParams > 0 ? 'bg-danger' : 'bg-secondary'}">
+                    ${criticalParams} críticos
+                </span>
+            </div>
+        </div>
+    `;
+    
+    return summary;
+}
+
+// Create table rows for study results
+function createStudyResultsRows(study) {
+    if (!study.resultados || study.resultados.length === 0) {
+        return '<tr><td colspan="4" class="text-center text-muted">Sin resultados</td></tr>';
+    }
+    
+    let rows = '';
+    study.resultados.forEach(result => {
+        const statusClass = getStatusClass(result.estado);
+        const statusIcon = getStatusIcon(result.estado);
+        
+        rows += `
+            <tr>
+                <td><strong>${result.parametro}</strong></td>
+                <td>${result.valor}</td>
+                <td>${result.unidad || '--'}</td>
+                <td>
+                    <span class="badge ${statusClass}">
+                        ${statusIcon} ${result.estado}
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    return rows;
+}
+
+// Get CSS class for status
+function getStatusClass(status) {
+    switch (status) {
+        case 'normal': return 'bg-success';
+        case 'alto': return 'bg-warning';
+        case 'bajo': return 'bg-warning';
+        case 'critico': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+// Get icon for status
+function getStatusIcon(status) {
+    switch (status) {
+        case 'normal': return '<i class="fas fa-check"></i>';
+        case 'alto': return '<i class="fas fa-arrow-up"></i>';
+        case 'bajo': return '<i class="fas fa-arrow-down"></i>';
+        case 'critico': return '<i class="fas fa-exclamation-triangle"></i>';
+        default: return '<i class="fas fa-question"></i>';
+    }
+}
+
+// Get unique parameters count across all studies
+function getUniqueParametersCount(studies) {
+    const uniqueParams = new Set();
+    studies.forEach(study => {
+        if (study.resultados && study.resultados.length > 0) {
+            study.resultados.forEach(result => {
+                uniqueParams.add(result.parametro);
+            });
+        }
+    });
+    return uniqueParams.size;
+}
+
+// Get abnormal values count across all studies
+function getAbnormalValuesCount(studies) {
+    let count = 0;
+    studies.forEach(study => {
+        if (study.resultados && study.resultados.length > 0) {
+            count += study.resultados.filter(result => result.estado !== 'normal').length;
+        }
+    });
+    return count;
+}
+
+// Create comparison row for a parameter
+function createParameterComparisonRow(parametro, sortedDates, studiesByDate) {
+    // Get all values for this parameter across all studies
+    const parameterData = {};
+    
+    sortedDates.forEach(date => {
+        studiesByDate[date].forEach(laboratory => {
+            if (laboratory.resultados && laboratory.resultados.length > 0) {
+                laboratory.resultados.forEach(result => {
+                    if (result.parametro === parametro) {
+                        parameterData[date] = {
+                            valor: result.valor,
+                            unidad: result.unidad,
+                            valor_referencia_min: result.valor_referencia_min,
+                            valor_referencia_max: result.valor_referencia_max,
+                            estado: result.estado,
+                            observaciones: result.observaciones
+                        };
+                    }
+                });
+            }
+        });
+    });
+    
+    // Get reference values (use first available)
+    const firstData = Object.values(parameterData)[0];
+    const unidad = firstData?.unidad || '--';
+    const rangeText = (firstData?.valor_referencia_min && firstData?.valor_referencia_max) ?
+        `${firstData.valor_referencia_min} - ${firstData.valor_referencia_max}` : '--';
+    
+    let html = `
+        <tr>
+            <td><strong>${parametro}</strong></td>
+            <td>${unidad}</td>
+            <td>${rangeText}</td>
+    `;
+    
+    // Add values for each date
+    sortedDates.forEach(date => {
+        const data = parameterData[date];
+        if (data) {
+            let valueClass = '';
+            let statusBadge = '';
+            
+            switch (data.estado) {
+                case 'normal':
+                    statusBadge = '<span class="badge bg-success">Normal</span>';
+                    break;
+                case 'alto':
+                    statusBadge = '<span class="badge bg-danger">Alto</span>';
+                    valueClass = 'text-danger fw-bold';
+                    break;
+                case 'bajo':
+                    statusBadge = '<span class="badge bg-warning">Bajo</span>';
+                    valueClass = 'text-warning fw-bold';
+                    break;
+                case 'critico':
+                    statusBadge = '<span class="badge bg-dark">Crítico</span>';
+                    valueClass = 'text-dark fw-bold';
+                    break;
+                default:
+                    statusBadge = '<span class="badge bg-secondary">--</span>';
+            }
+            
+            html += `<td class="text-center ${valueClass}">${data.valor}</td>`;
+        } else {
+            html += '<td class="text-center text-muted">--</td>';
+        }
+    });
+    
+    // Add status column (show if there are any abnormal values)
+    const hasAbnormal = Object.values(parameterData).some(data => data.estado !== 'normal');
+    const statusHtml = hasAbnormal ? 
+        '<span class="badge bg-warning">Revisar</span>' : 
+        '<span class="badge bg-success">Normal</span>';
+    
+    html += `<td class="text-center">${statusHtml}</td>`;
+    html += '</tr>';
+    
+    return html;
+}
+
+// Show message when no common parameters found
+function showNoCommonParametersMessage() {
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv) return;
+    
+    contentDiv.innerHTML = `
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+            <h5>No se encontraron parámetros comunes</h5>
+            <p>Los estudios de laboratorio no comparten parámetros para comparar</p>
+            <div class="mt-4">
+                <button class="btn btn-outline-primary" onclick="showManualComparison()">
+                    <i class="fas fa-cog me-1"></i>Comparación Manual
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Show manual comparison options
+function showManualComparison() {
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv) return;
+    
+    contentDiv.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Comparación Manual
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Seleccionar Parámetro:</label>
+                        <select class="form-select" id="manualParameterSelect">
+                            <option value="">Seleccione un parámetro...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tipo de Comparación:</label>
+                        <select class="form-select" id="manualTypeSelect">
+                            <option value="evolution">Evolución Temporal</option>
+                            <option value="abnormal">Valores Anormales</option>
+                            <option value="range">Comparar por Rango</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" onclick="loadManualComparison()">
+                        <i class="fas fa-search me-1"></i>Cargar Comparación
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Populate parameter select
+    populateCompareParameterSelect();
+}
+
+// Load manual comparison
+function loadManualComparison() {
+    const parameter = document.getElementById('manualParameterSelect').value;
+    const type = document.getElementById('manualTypeSelect').value;
+    
+    if (!parameter) {
+        showAlert('Seleccione un parámetro para comparar', 'warning');
+        return;
+    }
+    
+    loadComparisonData(parameter, type);
+}
+
+// Populate parameter select for comparison
+function populateCompareParameterSelect() {
+    const select = document.getElementById('compareParameterSelect');
+    if (!select || !laboratoriosData) return;
+    
+    // Clear existing options
+    select.innerHTML = '<option value="">Seleccione un parámetro...</option>';
+    
+    // Get unique parameters from all laboratories
+    const uniqueParams = new Set();
+    laboratoriosData.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                uniqueParams.add(result.parametro);
+            });
+        }
+    });
+    
+    // Add options
+    Array.from(uniqueParams).sort().forEach(parametro => {
+        const option = document.createElement('option');
+        option.value = parametro;
+        option.textContent = parametro;
+        select.appendChild(option);
+    });
+}
+
+// Setup event listeners for compare modal
+function setupCompareModalEventListeners() {
+    const parameterSelect = document.getElementById('compareParameterSelect');
+    const typeSelect = document.getElementById('compareTypeSelect');
+    const exportBtn = document.getElementById('exportComparisonBtn');
+    
+    if (parameterSelect) {
+        parameterSelect.addEventListener('change', handleCompareParameterChange);
+    }
+    
+    if (typeSelect) {
+        typeSelect.addEventListener('change', handleCompareTypeChange);
+    }
+    
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportComparisonData);
+    }
+}
+
+// Handle parameter selection change
+function handleCompareParameterChange() {
+    const parameter = document.getElementById('compareParameterSelect').value;
+    const type = document.getElementById('compareTypeSelect').value;
+    
+    if (parameter) {
+        loadComparisonData(parameter, type);
+    } else {
+        showCompareEmptyState();
+    }
+}
+
+// Handle comparison type change
+function handleCompareTypeChange() {
+    const parameter = document.getElementById('compareParameterSelect').value;
+    const type = document.getElementById('compareTypeSelect').value;
+    
+    if (parameter) {
+        loadComparisonData(parameter, type);
+    }
+}
+
+// Load comparison data based on parameter and type
+async function loadComparisonData(parameter, type) {
+    const contentDiv = document.getElementById('compareContent');
+    const exportBtn = document.getElementById('exportComparisonBtn');
+    
+    if (!contentDiv) return;
+    
+    // Show loading state
+    contentDiv.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando datos de comparación...</p>
+        </div>
+    `;
+    
+    try {
+        let comparisonData;
+        
+        switch (type) {
+            case 'evolution':
+                comparisonData = await getParameterEvolution(parameter);
+                displayEvolutionComparison(comparisonData, parameter);
+                break;
+            case 'abnormal':
+                comparisonData = await getAbnormalValues(parameter);
+                displayAbnormalComparison(comparisonData, parameter);
+                break;
+            case 'range':
+                comparisonData = await getParameterRangeComparison(parameter);
+                displayRangeComparison(comparisonData, parameter);
+                break;
+            default:
+                throw new Error('Tipo de comparación no válido');
+        }
+        
+        // Enable export button
+        if (exportBtn) {
+            exportBtn.disabled = false;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading comparison data:', error);
+        showCompareError(error.message);
+    }
+}
+
+// Get parameter evolution data
+async function getParameterEvolution(parameter) {
+    const token = localStorage.getItem('token');
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    
+    if (!token || !patientId) {
+        throw new Error('Token o ID de paciente no encontrado');
+    }
+    
+    const response = await fetch(`/api/laboratorios/evolucion/${patientId}/${encodeURIComponent(parameter)}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    return result.success ? result.data : [];
+}
+
+// Get abnormal values for parameter
+async function getAbnormalValues(parameter) {
+    const token = localStorage.getItem('token');
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientId = urlParams.get('patientId');
+    
+    if (!token || !patientId) {
+        throw new Error('Token o ID de paciente no encontrado');
+    }
+    
+    const response = await fetch(`/api/laboratorios/fuera-rango/${patientId}`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    const allAbnormal = result.success ? result.data : [];
+    
+    // Filter by specific parameter
+    return allAbnormal.filter(item => item.parametro === parameter);
+}
+
+// Get parameter range comparison data
+async function getParameterRangeComparison(parameter) {
+    // Use existing laboratory data to compare with reference ranges
+    if (!laboratoriosData) return [];
+    
+    const parameterData = [];
+    
+    laboratoriosData.forEach(laboratory => {
+        if (laboratory.resultados && laboratory.resultados.length > 0) {
+            laboratory.resultados.forEach(result => {
+                if (result.parametro === parameter) {
+                    parameterData.push({
+                        ...result,
+                        fecha_estudio: laboratory.fecha_estudio,
+                        laboratorio: laboratory.laboratorio
+                    });
+                }
+            });
+        }
+    });
+    
+    return parameterData.sort((a, b) => new Date(a.fecha_estudio) - new Date(b.fecha_estudio));
+}
+
+// Display evolution comparison
+function displayEvolutionComparison(data, parameter) {
+    const contentDiv = document.getElementById('compareContent');
+    
+    if (!data || data.length === 0) {
+        contentDiv.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-chart-line fa-2x mb-3"></i>
+                <h6>No hay datos de evolución</h6>
+                <p>No se encontraron datos históricos para el parámetro "${parameter}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create evolution table
+    let tableHtml = `
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Evolución del Parámetro: ${parameter}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Laboratorio</th>
+                                <th>Valor</th>
+                                <th>Unidad</th>
+                                <th>Rango Normal</th>
+                                <th>Estado</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    data.forEach(item => {
+        const fechaFormatted = formatDateWithTimezoneHelper(item.fecha_estudio, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        const rangeText = (item.valor_referencia_min && item.valor_referencia_max) ?
+            `${item.valor_referencia_min} - ${item.valor_referencia_max}` : '--';
+        
+        let statusBadge = '';
+        switch (item.estado) {
+            case 'normal':
+                statusBadge = '<span class="badge bg-success">Normal</span>';
+                break;
+            case 'alto':
+                statusBadge = '<span class="badge bg-danger">Alto</span>';
+                break;
+            case 'bajo':
+                statusBadge = '<span class="badge bg-warning">Bajo</span>';
+                break;
+            case 'critico':
+                statusBadge = '<span class="badge bg-dark">Crítico</span>';
+                break;
+            default:
+                statusBadge = '<span class="badge bg-secondary">--</span>';
+        }
+        
+        let valueClass = '';
+        if (item.estado !== 'normal') {
+            valueClass = item.estado === 'alto' ? 'text-danger fw-bold' :
+                        item.estado === 'bajo' ? 'text-warning fw-bold' :
+                        'text-dark fw-bold';
+        }
+        
+        tableHtml += `
+            <tr>
+                <td>${fechaFormatted}</td>
+                <td>${item.laboratorio || '--'}</td>
+                <td class="${valueClass}">${item.valor}</td>
+                <td>${item.unidad || '--'}</td>
+                <td>${rangeText}</td>
+                <td>${statusBadge}</td>
+                <td>${item.observaciones || '--'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    contentDiv.innerHTML = tableHtml;
+}
+
+// Display abnormal comparison
+function displayAbnormalComparison(data, parameter) {
+    const contentDiv = document.getElementById('compareContent');
+    
+    if (!data || data.length === 0) {
+        contentDiv.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h6>No hay valores anormales</h6>
+                <p>No se encontraron valores anormales para el parámetro "${parameter}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create abnormal values table
+    let tableHtml = `
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Valores Anormales: ${parameter}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Laboratorio</th>
+                                <th>Valor</th>
+                                <th>Unidad</th>
+                                <th>Rango Normal</th>
+                                <th>Estado</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    data.forEach(item => {
+        const fechaFormatted = formatDateWithTimezoneHelper(item.fecha_estudio, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        const rangeText = (item.valor_referencia_min && item.valor_referencia_max) ?
+            `${item.valor_referencia_min} - ${item.valor_referencia_max}` : '--';
+        
+        let statusBadge = '';
+        switch (item.estado) {
+            case 'alto':
+                statusBadge = '<span class="badge bg-danger">Alto</span>';
+                break;
+            case 'bajo':
+                statusBadge = '<span class="badge bg-warning">Bajo</span>';
+                break;
+            case 'critico':
+                statusBadge = '<span class="badge bg-dark">Crítico</span>';
+                break;
+            default:
+                statusBadge = '<span class="badge bg-secondary">--</span>';
+        }
+        
+        let valueClass = '';
+        if (item.estado === 'alto') {
+            valueClass = 'text-danger fw-bold';
+        } else if (item.estado === 'bajo') {
+            valueClass = 'text-warning fw-bold';
+        } else {
+            valueClass = 'text-dark fw-bold';
+        }
+        
+        tableHtml += `
+            <tr>
+                <td>${fechaFormatted}</td>
+                <td>${item.laboratorio || '--'}</td>
+                <td class="${valueClass}">${item.valor}</td>
+                <td>${item.unidad || '--'}</td>
+                <td>${rangeText}</td>
+                <td>${statusBadge}</td>
+                <td>${item.observaciones || '--'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    contentDiv.innerHTML = tableHtml;
+}
+
+// Display range comparison
+function displayRangeComparison(data, parameter) {
+    const contentDiv = document.getElementById('compareContent');
+    
+    if (!data || data.length === 0) {
+        contentDiv.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-ruler fa-2x mb-3"></i>
+                <h6>No hay datos para comparar</h6>
+                <p>No se encontraron datos para el parámetro "${parameter}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create range comparison table
+    let tableHtml = `
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-ruler me-2"></i>Comparación por Rango: ${parameter}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Laboratorio</th>
+                                <th>Valor</th>
+                                <th>Unidad</th>
+                                <th>Rango Normal</th>
+                                <th>Estado</th>
+                                <th>% del Rango</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    data.forEach(item => {
+        const fechaFormatted = formatDateWithTimezoneHelper(item.fecha_estudio, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        const rangeText = (item.valor_referencia_min && item.valor_referencia_max) ?
+            `${item.valor_referencia_min} - ${item.valor_referencia_max}` : '--';
+        
+        let statusBadge = '';
+        switch (item.estado) {
+            case 'normal':
+                statusBadge = '<span class="badge bg-success">Normal</span>';
+                break;
+            case 'alto':
+                statusBadge = '<span class="badge bg-danger">Alto</span>';
+                break;
+            case 'bajo':
+                statusBadge = '<span class="badge bg-warning">Bajo</span>';
+                break;
+            case 'critico':
+                statusBadge = '<span class="badge bg-dark">Crítico</span>';
+                break;
+            default:
+                statusBadge = '<span class="badge bg-secondary">--</span>';
+        }
+        
+        let valueClass = '';
+        if (item.estado !== 'normal') {
+            valueClass = item.estado === 'alto' ? 'text-danger fw-bold' :
+                        item.estado === 'bajo' ? 'text-warning fw-bold' :
+                        'text-dark fw-bold';
+        }
+        
+        // Calculate percentage of range
+        let rangePercentage = '--';
+        if (item.valor_referencia_min && item.valor_referencia_max && item.valor) {
+            const range = item.valor_referencia_max - item.valor_referencia_min;
+            const position = item.valor - item.valor_referencia_min;
+            const percentage = (position / range) * 100;
+            rangePercentage = `${percentage.toFixed(1)}%`;
+        }
+        
+        tableHtml += `
+            <tr>
+                <td>${fechaFormatted}</td>
+                <td>${item.laboratorio || '--'}</td>
+                <td class="${valueClass}">${item.valor}</td>
+                <td>${item.unidad || '--'}</td>
+                <td>${rangeText}</td>
+                <td>${statusBadge}</td>
+                <td>${rangePercentage}</td>
+                <td>${item.observaciones || '--'}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    contentDiv.innerHTML = tableHtml;
+}
+
+// Show compare empty state
+function showCompareEmptyState() {
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv) return;
+    
+    contentDiv.innerHTML = `
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-chart-line fa-3x mb-3"></i>
+            <h5>Seleccione un parámetro para comparar</h5>
+            <p>Elija un parámetro de laboratorio para ver su evolución o comparar valores</p>
+        </div>
+    `;
+}
+
+// Show compare error
+function showCompareError(message) {
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv) return;
+    
+    contentDiv.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Error al cargar comparación:</strong> ${message}
+        </div>
+    `;
+}
+
+// Export comparison data
+function exportComparisonData() {
+    const parameter = document.getElementById('compareParameterSelect').value;
+    const type = document.getElementById('compareTypeSelect').value;
+    
+    if (!parameter) {
+        showAlert('Seleccione un parámetro para exportar', 'warning');
+        return;
+    }
+    
+    // Get current comparison content
+    const contentDiv = document.getElementById('compareContent');
+    if (!contentDiv) return;
+    
+    // Create a new window with the comparison data
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Comparación de Laboratorio - ${parameter}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .badge { padding: 4px 8px; border-radius: 4px; color: white; }
+                    .bg-success { background-color: #28a745; }
+                    .bg-danger { background-color: #dc3545; }
+                    .bg-warning { background-color: #ffc107; color: black; }
+                    .bg-dark { background-color: #343a40; }
+                    .text-danger { color: #dc3545; font-weight: bold; }
+                    .text-warning { color: #ffc107; font-weight: bold; }
+                    .text-dark { color: #343a40; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h1>Comparación de Laboratorio</h1>
+                <p><strong>Parámetro:</strong> ${parameter}</p>
+                <p><strong>Tipo:</strong> ${type}</p>
+                <p><strong>Fecha de exportación:</strong> ${new Date().toLocaleString()}</p>
+                ${contentDiv.innerHTML}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+
+// Export analysis data
+function exportAnalysisData() {
+    try {
+        const analysisData = buildAnalysisData();
+        
+        if (!analysisData || analysisData.length === 0) {
+            showAlert('No hay datos para exportar', 'warning');
+            return;
+        }
+        
+        // Create CSV content
+        const headers = ['Fecha', 'Laboratorio', 'Parámetro', 'Valor', 'Unidad', 'Rango Normal', 'Estado', 'Observaciones'];
+        const csvContent = [
+            headers.join(','),
+            ...analysisData.map(item => [
+                item.fecha,
+                `"${item.laboratorio}"`,
+                `"${item.parametro}"`,
+                item.valor,
+                `"${item.unidad}"`,
+                `"${(item.valor_referencia_min && item.valor_referencia_max) ? `${item.valor_referencia_min} - ${item.valor_referencia_max}` : '--'}"`,
+                `"${item.estado}"`,
+                `"${item.observaciones}"`
+            ].join(','))
+        ].join('\n');
+        
+        // Create and download file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `analisis_laboratorio_${currentPatient?.name || 'paciente'}_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showAlert('Datos de análisis exportados exitosamente', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error exporting analysis data:', error);
+        showAlert('Error al exportar datos: ' + error.message, 'error');
+    }
+}
+
+// Toggle analysis view
 // Initialize charts (excluding anthropometry charts which are handled separately)
 function initCharts() {
     // Only initialize the evolution chart, not the anthropometry charts
@@ -326,6 +3341,16 @@ function setupEventListeners() {
                     // Load anthropometry data when anthropometry tab is clicked
                     if (targetTab === '#anthropometry') {
                         initAnthropometry();
+                    }
+                    
+                    // Load antecedents data when antecedents tab is clicked
+                    if (targetTab === '#antecedents') {
+                        initAntecedentsTab();
+                    }
+                    
+                    // Load laboratories data when laboratories tab is clicked
+                    if (targetTab === '#laboratories') {
+                        initLaboratoriesTab();
                     }
                     
                     // Load nutrition data when nutrition tab is clicked
@@ -491,19 +3516,23 @@ function exportHistory() {
 
 // Generate PDF with patient history
 async function generateHistoryPDF(patient) {
-    return new Promise((resolve, reject) => {
-        try {
-            // Create a new window for PDF generation
-            const printWindow = window.open('', '_blank');
-            
-            // Get current date
-            const currentDate = new Date().toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
+    try {
+        // Create a new window for PDF generation
+        const printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+            throw new Error('No se pudo abrir la ventana de impresión');
+        }
 
-            // Generate HTML content for PDF
+        // Get current date
+        const currentDate = new Date().toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Generate HTML content for PDF
+        const anthropometrySection = await generateAnthropometrySection();
             const pdfContent = `
                 <!DOCTYPE html>
                 <html lang="es">
@@ -660,7 +3689,7 @@ async function generateHistoryPDF(patient) {
                     </div>
 
                     ${generateConsultationsSection()}
-                    ${generateAnthropometrySection()}
+                    ${anthropometrySection}
                     ${generateNutritionSection()}
                     ${generateEvolutionSection()}
 
@@ -681,14 +3710,13 @@ async function generateHistoryPDF(patient) {
                 printWindow.focus();
                 printWindow.print();
                 printWindow.close();
-                resolve();
             }, 1000);
 
         } catch (error) {
-            reject(error);
+            console.error('Error generating PDF:', error);
+            throw error;
         }
-    });
-}
+    }
 
 // Generate consultations section for PDF
 function generateConsultationsSection() {
@@ -733,7 +3761,7 @@ function generateConsultationsSection() {
 }
 
 // Generate anthropometry section for PDF
-function generateAnthropometrySection() {
+async function generateAnthropometrySection() {
     if (!antropometriaData || antropometriaData.length === 0) {
         return `
             <div class="section">
@@ -743,16 +3771,19 @@ function generateAnthropometrySection() {
         `;
     }
 
-    const measurementsTable = antropometriaData.map(medicion => `
-        <tr>
-            <td>${new Date(medicion.fecha).toLocaleDateString('es-ES')}</td>
-            <td>${medicion.peso ? `${medicion.peso} kg` : '--'}</td>
-            <td>${medicion.altura ? `${medicion.altura} cm` : '--'}</td>
-            <td>${medicion.imc ? medicion.imc.toFixed(1) : '--'}</td>
-            <td>${medicion.circunferencia_cintura ? `${medicion.circunferencia_cintura} cm` : '--'}</td>
-            <td>${medicion.circunferencia_cadera ? `${medicion.circunferencia_cadera} cm` : '--'}</td>
-        </tr>
-    `).join('');
+    const measurementsTable = await Promise.all(antropometriaData.map(async medicion => {
+        const fechaFormatted = await formatDateWithTimezoneHelper(medicion.fecha);
+        return `
+            <tr>
+                <td>${fechaFormatted}</td>
+                <td>${medicion.peso ? `${medicion.peso} kg` : '--'}</td>
+                <td>${medicion.altura ? `${medicion.altura} cm` : '--'}</td>
+                <td>${medicion.imc ? medicion.imc.toFixed(1) : '--'}</td>
+                <td>${medicion.circunferencia_cintura ? `${medicion.circunferencia_cintura} cm` : '--'}</td>
+                <td>${medicion.circunferencia_cadera ? `${medicion.circunferencia_cadera} cm` : '--'}</td>
+            </tr>
+        `;
+    }));
 
     return `
         <div class="section">
@@ -1995,8 +5026,8 @@ async function loadAnthropometryData() {
         // Update UI
         console.log('🎨 Updating anthropometry UI...');
         updateAnthropometryStats();
-        renderAnthropometryTable();
-        updateAnthropometryCharts();
+        await renderAnthropometryTable();
+        await updateAnthropometryCharts();
         console.log('✅ Anthropometry UI updated successfully');
 
     } catch (error) {
@@ -2038,7 +5069,7 @@ function updateAnthropometryStats() {
 }
 
 // Render anthropometry table
-function renderAnthropometryTable() {
+async function renderAnthropometryTable() {
     console.log('🎨 Rendering anthropometry table...');
     console.log('📊 Data to render:', antropometriaData);
     
@@ -2072,27 +5103,27 @@ function renderAnthropometryTable() {
     console.log('📅 Sorted data:', sortedData);
 
     // Render each measurement
-    sortedData.forEach((medicion, index) => {
-        console.log(`🔨 Creating row ${index + 1} for measurement:`, medicion);
-        const row = createAnthropometryRow(medicion);
+    // Render each measurement
+    for (let i = 0; i < sortedData.length; i++) {
+        const medicion = sortedData[i];
+        console.log(`🔨 Creating row ${i + 1} for measurement:`, medicion);
+        
+        const row = await createAnthropometryRow(medicion);
         tbody.appendChild(row);
-    });
+    }
     
     console.log('✅ Anthropometry table rendered successfully');
 }
 
 // Create anthropometry table row
-function createAnthropometryRow(medicion) {
+async function createAnthropometryRow(medicion) {
     const row = document.createElement('tr');
     
-    // Format date
-    const fechaParts = medicion.fecha.split('-');
-    const fecha = new Date(parseInt(fechaParts[0]), parseInt(fechaParts[1]) - 1, parseInt(fechaParts[2]));
-    const fechaFormatted = fecha.toLocaleDateString('es-ES', {
+    // Format date using professional's timezone
+    const fechaFormatted = await formatDateWithTimezoneHelper(medicion.fecha, {
         year: 'numeric',
         month: 'short',
-        day: 'numeric',
-        timeZone: 'America/Argentina/Buenos_Aires'
+        day: 'numeric'
     });
 
     // Safely handle numeric values
@@ -2208,7 +5239,7 @@ function updateComparisonButtons() {
 }
 
 // Show comparison between two selected measurements
-function showComparison() {
+async function showComparison() {
     console.log('🔄 showComparison called');
     const selectedCheckboxes = document.querySelectorAll('.measurement-checkbox:checked');
     
@@ -2232,10 +5263,10 @@ function showComparison() {
     }
     
     // Display comparison
-    displayComparison(measurement1, measurement2);
+    await displayComparison(measurement1, measurement2);
     
     // Create comparison chart
-    createComparisonChart(measurement1, measurement2);
+    await createComparisonChart(measurement1, measurement2);
     
     // Show comparison sections
     document.getElementById('comparisonSection').style.display = 'block';
@@ -2246,10 +5277,10 @@ function showComparison() {
 }
 
 // Display comparison data
-function displayComparison(measurement1, measurement2) {
-    // Format dates
-    const date1 = new Date(measurement1.fecha).toLocaleDateString('es-ES');
-    const date2 = new Date(measurement2.fecha).toLocaleDateString('es-ES');
+async function displayComparison(measurement1, measurement2) {
+    // Format dates using professional's timezone
+    const date1 = await formatDateWithTimezoneHelper(measurement1.fecha);
+    const date2 = await formatDateWithTimezoneHelper(measurement2.fecha);
     
     // Update headers
     document.getElementById('comparisonDate1').textContent = `Medición 1 - ${date1}`;
@@ -2318,7 +5349,7 @@ function updateDifferenceValue(elementId, value, unit) {
 }
 
 // Create comparison chart
-function createComparisonChart(measurement1, measurement2) {
+async function createComparisonChart(measurement1, measurement2) {
     const ctx = document.getElementById('comparisonChart');
     if (!ctx) return;
     
@@ -2347,8 +5378,8 @@ function createComparisonChart(measurement1, measurement2) {
         measurement2.masa_muscular ? parseFloat(measurement2.masa_muscular) : 0
     ];
     
-    const date1 = new Date(measurement1.fecha).toLocaleDateString('es-ES');
-    const date2 = new Date(measurement2.fecha).toLocaleDateString('es-ES');
+    const date1 = await formatDateWithTimezoneHelper(measurement1.fecha);
+    const date2 = await formatDateWithTimezoneHelper(measurement2.fecha);
     
     antropometriaCharts.comparison = new Chart(ctx, {
         type: 'bar',
@@ -2721,7 +5752,7 @@ async function deleteAnthropometry(medicionId) {
 }
 
 // Update anthropometry charts
-function updateAnthropometryCharts() {
+async function updateAnthropometryCharts() {
     if (antropometriaData.length === 0) {
         // Show empty charts
         updateEmptyCharts();
@@ -2732,10 +5763,9 @@ function updateAnthropometryCharts() {
     const sortedData = [...antropometriaData].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
     
     // Prepare chart data
-    const labels = sortedData.map(m => {
-        const date = new Date(m.fecha);
-        return date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-    });
+    const labels = await Promise.all(sortedData.map(async m => {
+        return await formatDateWithTimezoneHelper(m.fecha, { month: 'short', day: 'numeric' });
+    }));
     
     // Safely convert to numbers and filter out null/invalid values
     const weightData = sortedData.map(m => {
