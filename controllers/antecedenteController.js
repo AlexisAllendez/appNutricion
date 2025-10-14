@@ -19,10 +19,18 @@ class AntecedenteController {
 
             const antecedentes = await this.antecedente.getByUsuario(usuarioId);
 
-            res.json({
-                success: true,
-                data: antecedentes
-            });
+            if (antecedentes) {
+                res.json({
+                    success: true,
+                    data: antecedentes
+                });
+            } else {
+                res.status(404).json({
+                    success: false,
+                    message: 'No se encontraron antecedentes para este paciente',
+                    data: null
+                });
+            }
 
         } catch (error) {
             console.error('Error en getAntecedentesByUsuario:', error);
