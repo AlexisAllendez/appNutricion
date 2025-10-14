@@ -85,7 +85,8 @@ class PacienteController {
             const pacienteId = req.user.id;
             const { limit = 20, offset = 0 } = req.query;
 
-            const mediciones = await Antropometria.getByPaciente(pacienteId, { limit, offset });
+            const antropometria = new Antropometria();
+            const mediciones = await antropometria.getByUsuario(pacienteId, { limit, offset });
 
             res.json({
                 success: true,

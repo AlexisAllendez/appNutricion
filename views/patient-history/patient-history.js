@@ -106,6 +106,41 @@ function getProfesionalIdFromToken() {
     }
 }
 
+// Update patient summary with latest anthropometry data
+async function updatePatientSummary() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        
+        if (!patientId) {
+            console.warn('No patient ID found for summary update');
+            return;
+        }
+        
+        console.log('🔄 Updating patient summary with latest data...');
+        
+        // Get latest anthropometry data
+        const anthropometryData = await getLatestAnthropometryData(patientId);
+        
+        // Update the summary elements
+        const currentWeightElement = document.getElementById('currentWeight');
+        const imcElement = document.getElementById('imc');
+        
+        if (currentWeightElement) {
+            currentWeightElement.textContent = anthropometryData.weight || 'Sin peso';
+        }
+        
+        if (imcElement) {
+            imcElement.textContent = anthropometryData.imc || 'Sin IMC';
+        }
+        
+        console.log('✅ Patient summary updated - Weight:', anthropometryData.weight, 'IMC:', anthropometryData.imc);
+        
+    } catch (error) {
+        console.error('❌ Error updating patient summary:', error);
+    }
+}
+
 // Load patient data
 async function loadPatientData() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -581,6 +616,7 @@ async function loadAntecedentsData() {
         
         if (!patientId) {
             console.warn('No patient ID found');
+            hideAntecedentsLoading();
             return;
         }
         
@@ -603,6 +639,7 @@ async function loadAntecedentsData() {
                 console.log('📝 No antecedents found for patient');
                 antecedentesData = null;
                 showAntecedentsEmptyState();
+                hideAntecedentsLoading();
                 return;
             }
             throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -5621,6 +5658,9 @@ async function guardarNuevaAntropometria() {
         
         // Reload data
         loadAnthropometryData();
+        
+        // Update patient summary with latest data
+        await updatePatientSummary();
 
     } catch (error) {
         console.error('Error guardando medición antropométrica:', error);
@@ -5749,6 +5789,9 @@ async function guardarEdicionAntropometria() {
         
         // Reload data
         loadAnthropometryData();
+        
+        // Update patient summary with latest data
+        await updatePatientSummary();
 
     } catch (error) {
         console.error('Error guardando edición de medición:', error);

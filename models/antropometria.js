@@ -6,7 +6,6 @@ class Antropometria {
     }
 
     async create(antropometriaData) {
-        const connection = await getConnection();
         try {
             const {
                 usuario_id,
@@ -23,25 +22,24 @@ class Antropometria {
                 observaciones
             } = antropometriaData;
 
-            const [result] = await connection.execute(
-                `INSERT INTO ${this.table} (
+            const query = `
+                INSERT INTO ${this.table} (
                     usuario_id, fecha, peso, altura, imc,
                     pliegue_tricipital, pliegue_subescapular, circunferencia_cintura,
                     circunferencia_cadera, porcentaje_grasa, masa_muscular, observaciones
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [
-                    usuario_id, fecha, peso, altura, imc,
-                    pliegue_tricipital, pliegue_subescapular, circunferencia_cintura,
-                    circunferencia_cadera, porcentaje_grasa, masa_muscular, observaciones
-                ]
-            );
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            const result = await executeQuery(query, [
+                usuario_id, fecha, peso, altura, imc,
+                pliegue_tricipital, pliegue_subescapular, circunferencia_cintura,
+                circunferencia_cadera, porcentaje_grasa, masa_muscular, observaciones
+            ]);
 
             return result.insertId;
         } catch (error) {
             console.error('Error creating anthropometry record:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 
@@ -101,9 +99,8 @@ class Antropometria {
     }
 
     async getById(id) {
-        const connection = await getConnection();
         try {
-            const [rows] = await connection.execute(
+            const rows = await executeQuery(
                 `SELECT * FROM ${this.table} WHERE id = ?`,
                 [id]
             );
@@ -111,13 +108,10 @@ class Antropometria {
         } catch (error) {
             console.error('Error fetching anthropometry by ID:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     async update(id, antropometriaData) {
-        const connection = await getConnection();
         try {
             const {
                 fecha,
@@ -133,32 +127,30 @@ class Antropometria {
                 observaciones
             } = antropometriaData;
 
-            const [result] = await connection.execute(
-                `UPDATE ${this.table} SET 
+            const query = `
+                UPDATE ${this.table} SET 
                     fecha = ?, peso = ?, altura = ?, imc = ?,
                     pliegue_tricipital = ?, pliegue_subescapular = ?, circunferencia_cintura = ?,
                     circunferencia_cadera = ?, porcentaje_grasa = ?, masa_muscular = ?, observaciones = ?
-                WHERE id = ?`,
-                [
-                    fecha, peso, altura, imc,
-                    pliegue_tricipital, pliegue_subescapular, circunferencia_cintura,
-                    circunferencia_cadera, porcentaje_grasa, masa_muscular, observaciones, id
-                ]
-            );
+                WHERE id = ?
+            `;
+
+            const result = await executeQuery(query, [
+                fecha, peso, altura, imc,
+                pliegue_tricipital, pliegue_subescapular, circunferencia_cintura,
+                circunferencia_cadera, porcentaje_grasa, masa_muscular, observaciones, id
+            ]);
 
             return result.affectedRows > 0;
         } catch (error) {
             console.error('Error updating anthropometry:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     async delete(id) {
-        const connection = await getConnection();
         try {
-            const [result] = await connection.execute(
+            const result = await executeQuery(
                 `DELETE FROM ${this.table} WHERE id = ?`,
                 [id]
             );
@@ -166,16 +158,13 @@ class Antropometria {
         } catch (error) {
             console.error('Error deleting anthropometry:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     async getStats(usuarioId) {
-        const connection = await getConnection();
         try {
-            const [rows] = await connection.execute(
-                `SELECT 
+            const query = `
+                SELECT 
                     COUNT(id) AS total_mediciones,
                     MIN(fecha) AS primera_medicion,
                     MAX(fecha) AS ultima_medicion,
@@ -185,23 +174,21 @@ class Antropometria {
                     AVG(porcentaje_grasa) AS grasa_promedio,
                     AVG(masa_muscular) AS masa_muscular_promedio
                 FROM ${this.table} 
-                WHERE usuario_id = ?`,
-                [usuarioId]
-            );
+                WHERE usuario_id = ?
+            `;
+            
+            const rows = await executeQuery(query, [usuarioId]);
             return rows[0];
         } catch (error) {
             console.error('Error fetching anthropometry stats:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     async getEvolution(usuarioId, limit = 10) {
-        const connection = await getConnection();
         try {
-            const [rows] = await connection.execute(
-                `SELECT 
+            const query = `
+                SELECT 
                     fecha,
                     peso,
                     altura,
@@ -213,15 +200,14 @@ class Antropometria {
                 FROM ${this.table} 
                 WHERE usuario_id = ? 
                 ORDER BY fecha DESC 
-                LIMIT ?`,
-                [usuarioId, limit]
-            );
+                LIMIT ?
+            `;
+            
+            const rows = await executeQuery(query, [usuarioId, limit]);
             return rows;
         } catch (error) {
             console.error('Error fetching anthropometry evolution:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
         }
     }
 }

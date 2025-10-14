@@ -50,7 +50,7 @@ async function handleLogin(event) {
     // Show loading state
     const loginButton = document.getElementById('loginButton');
     loginButton.classList.add('loading');
-    loginButton.disabled = true;
+
     
     try {
         // Show processing message

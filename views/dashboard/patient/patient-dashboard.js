@@ -1,471 +1,446 @@
 // Patient Dashboard JavaScript
 
-// Variables globales
+// Global variables
 let patientData = null;
-let authToken = null;
-let currentUser = null;
+let currentSection = 'inicio';
 
-// DOM Content Loaded
+// Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Verificar autenticación
-    checkAuthentication();
+    console.log('🚀 Patient Dashboard cargado');
+    initDashboard();
 });
 
-// Verificar autenticación
-function checkAuthentication() {
-    authToken = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+// Initialize dashboard
+function initDashboard() {
+    console.log('🎯 Inicializando dashboard...');
     
-    if (!authToken || !userStr) {
-        // Redirigir al login si no hay token
-        window.location.href = '/login';
+    // Check authentication
+    if (!checkAuthentication()) {
         return;
     }
     
-    try {
-        currentUser = JSON.parse(userStr);
-        
-        // Verificar que el usuario es un paciente
-        if (currentUser.rol !== 'paciente') {
-            showAlert('Acceso denegado. Solo los pacientes pueden acceder a esta sección.', 'error');
-            logout();
-            return;
-        }
-        
-        // Inicializar dashboard
-        initPatientDashboard();
-        
-    } catch (error) {
-        console.error('Error parsing user data:', error);
-        logout();
-    }
-}
-
-// Initialize patient dashboard
-function initPatientDashboard() {
     // Load patient data
     loadPatientData();
     
     // Initialize sidebar
     initSidebar();
     
-    // Load dashboard content
-    loadDashboardContent();
-    
-    // Set up event listeners
+    // Setup event listeners
     setupEventListeners();
     
-    // Set up periodic data refresh
-    setupDataRefresh();
+    console.log('✅ Dashboard inicializado');
 }
 
-// Load patient data from API
+// Check authentication
+function checkAuthentication() {
+    console.log('🔐 Verificando autenticación...');
+    
+    const token = localStorage.getItem('token');
+    const userData = localStorage.getItem('user'); // Cambiado de 'userData' a 'user'
+    
+    console.log('🔑 Token encontrado:', token ? 'Sí' : 'No');
+    console.log('👤 UserData encontrado:', userData ? 'Sí' : 'No');
+    
+    if (!token || !userData) {
+        console.log('❌ No hay token o datos de usuario');
+        showAlert('Sesión expirada. Redirigiendo al login...', 'warning');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return false;
+    }
+    
+    try {
+        const user = JSON.parse(userData);
+        console.log('👤 Usuario parseado:', user);
+        
+        if (user.rol !== 'paciente') {
+            console.log('❌ Usuario no es paciente, rol:', user.rol);
+            showAlert('Acceso denegado. Solo pacientes pueden acceder a esta sección.', 'error');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+            return false;
+        }
+        
+        // Update patient name in navbar
+        const patientNameElement = document.getElementById('patientName');
+        if (patientNameElement) {
+            patientNameElement.textContent = user.apellido_nombre || user.nombre || 'Paciente';
+        }
+        
+        console.log('✅ Autenticación verificada correctamente');
+        return true;
+    } catch (error) {
+        console.error('❌ Error parsing user data:', error);
+        showAlert('Error en los datos de usuario. Redirigiendo al login...', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return false;
+    }
+}
+
+// Load patient data
 async function loadPatientData() {
     try {
-        console.log('🔄 Cargando datos del paciente...');
-        showLoadingState();
+        console.log('📊 Cargando datos del paciente...');
         
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/pacientes/info', {
-            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
-        console.log('📊 Datos del paciente recibidos:', result);
         
         if (result.success) {
             patientData = result.data;
-            console.log('✅ Datos del paciente cargados correctamente');
-            updatePatientInfo();
-            updateDashboardStats();
-            // Cargar contenido del dashboard después de obtener los datos
-            await loadDashboardSection();
+            console.log('✅ Datos del paciente cargados:', patientData);
+            console.log('👤 Datos del paciente específicos:', {
+                paciente: patientData.paciente,
+                stats: patientData.stats,
+                ultimaMedicion: patientData.ultimaMedicion,
+                planActivo: patientData.planActivo,
+                proximaConsulta: patientData.proximaConsulta
+            });
+            
+            // Load initial section
+            loadSection(currentSection);
         } else {
-            console.error('❌ Error en respuesta:', result.message);
-            showAlert(result.message || 'Error cargando datos del paciente', 'error');
+            throw new Error(result.message || 'Error cargando datos');
         }
-        
     } catch (error) {
-        console.error('❌ Error loading patient data:', error);
-        showAlert('Error de conexión. Verifica tu internet e intenta nuevamente.', 'error');
-    } finally {
-        hideLoadingState();
+        console.error('❌ Error cargando datos del paciente:', error);
+        showAlert('Error cargando datos del paciente', 'error');
     }
 }
 
-// Update patient information in UI
-function updatePatientInfo() {
-    if (!patientData || !patientData.paciente) return;
+// Initialize sidebar
+function initSidebar() {
+    console.log('📋 Inicializando sidebar...');
     
-    const paciente = patientData.paciente;
+    const sidebarLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+    console.log(`📊 Encontrados ${sidebarLinks.length} enlaces del sidebar`);
     
-    // Update patient name
-    document.getElementById('patientName').textContent = paciente.apellido_nombre;
+    sidebarLinks.forEach((link, index) => {
+        const section = link.getAttribute('data-section');
+        console.log(`🔗 Configurando enlace ${index + 1}: ${section}`);
     
-    // Update patient details
-    if (document.getElementById('patientEmail')) {
-        document.getElementById('patientEmail').textContent = paciente.email || 'No especificado';
-    }
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log(`🖱️ Click en: ${section}`);
+            
+            // Update active state
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Load section
+            loadSection(section);
+        });
+    });
     
-    if (document.getElementById('patientPhone')) {
-        document.getElementById('patientPhone').textContent = paciente.telefono || 'No especificado';
-    }
-    
-    if (document.getElementById('patientDocument')) {
-        document.getElementById('patientDocument').textContent = paciente.numero_documento || 'No especificado';
-    }
+    console.log('✅ Sidebar inicializado');
 }
 
-// Update dashboard statistics
-function updateDashboardStats() {
-    if (!patientData) return;
+// Load section content
+async function loadSection(sectionName) {
+    console.log(`🔄 Cargando sección: ${sectionName}`);
     
-    // Update next appointment
-    const nextAppointmentElement = document.getElementById('nextAppointmentDate');
-    if (nextAppointmentElement) {
-        if (patientData.proximaConsulta) {
-            const fecha = new Date(patientData.proximaConsulta.fecha);
-            const hora = patientData.proximaConsulta.hora;
-            nextAppointmentElement.textContent = `${fecha.toLocaleDateString('es-ES')} a las ${hora}`;
-        } else {
-            nextAppointmentElement.textContent = 'No hay turnos programados';
-        }
-    }
-    
-    // Update current weight
-    const currentWeightElement = document.getElementById('currentWeightValue');
-    if (currentWeightElement && patientData.ultimaMedicion) {
-        currentWeightElement.textContent = `${patientData.ultimaMedicion.peso || 'N/A'} kg`;
-    } else if (currentWeightElement) {
-        currentWeightElement.textContent = 'No disponible';
-    }
-    
-    // Update target weight (this would need to be added to the database)
-    const targetWeightElement = document.getElementById('targetWeightValue');
-    if (targetWeightElement) {
-        targetWeightElement.textContent = 'Por establecer';
-    }
-    
-    // Update calories today (this would need to be calculated from meal logs)
-    const caloriesElement = document.getElementById('caloriesToday');
-    if (caloriesElement) {
-        caloriesElement.textContent = '0 / 0 cal';
-    }
-    
-    // Update statistics
-    updateStatisticsCards();
-}
-
-// Update statistics cards
-function updateStatisticsCards() {
-    if (!patientData || !patientData.stats) return;
-    
-    const stats = patientData.stats;
-    
-    // Update total consultations
-    const totalConsultationsElement = document.getElementById('totalConsultations');
-    if (totalConsultationsElement) {
-        totalConsultationsElement.textContent = stats.totalConsultas || 0;
-    }
-    
-    // Update total measurements
-    const totalMeasurementsElement = document.getElementById('totalMeasurements');
-    if (totalMeasurementsElement) {
-        totalMeasurementsElement.textContent = stats.totalMediciones || 0;
-    }
-    
-    // Update total plans
-    const totalPlansElement = document.getElementById('totalPlans');
-    if (totalPlansElement) {
-        totalPlansElement.textContent = stats.totalPlanes || 0;
-    }
-}
-
-// Load dashboard content based on active section
-function loadDashboardContent() {
-    const activeSection = getActiveSection();
-    if (activeSection) {
-        loadSectionContent(activeSection);
-    }
-}
-
-// Get active section from URL or default
-function getActiveSection() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const section = urlParams.get('section') || 'dashboard';
-    return section;
-}
-
-// Load content for specific section
-async function loadSectionContent(sectionName) {
-    console.log('🔄 Cargando contenido para sección:', sectionName);
-    
-    switch (sectionName) {
-        case 'dashboard':
-            console.log('📊 Cargando dashboard...');
-            await loadDashboardSection();
-            break;
-        case 'consultas':
-            console.log('📅 Cargando consultas...');
-            await loadConsultasSection();
-            break;
-        case 'mediciones':
-            console.log('⚖️ Cargando mediciones...');
-            await loadMedicionesSection();
-            break;
-        case 'plan-alimentario':
-            console.log('🍽️ Cargando plan alimentario...');
-            await loadPlanAlimentarioSection();
-            break;
-        case 'perfil':
-            console.log('👤 Cargando perfil...');
-            await loadPerfilSection();
-            break;
-        default:
-            console.log('📊 Cargando dashboard por defecto...');
-            await loadDashboardSection();
-    }
-    
-    console.log('✅ Contenido cargado para sección:', sectionName);
-}
-
-// Load dashboard section
-async function loadDashboardSection() {
-    console.log('🔄 Cargando sección dashboard...');
     const content = document.getElementById('dashboard-content');
     if (!content) {
         console.error('❌ No se encontró el elemento dashboard-content');
         return;
     }
     
-    console.log('✅ Elemento dashboard-content encontrado, cargando contenido...');
-    
+    // Show loading state
     content.innerHTML = `
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-tachometer-alt me-2"></i>Resumen General
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="stat-card">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-calendar-check"></i>
-                                    </div>
-                                    <div class="stat-content">
-                                        <h3 id="totalConsultations">0</h3>
-                                        <p>Consultas Totales</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-card">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-weight"></i>
-                                    </div>
-                                    <div class="stat-content">
-                                        <h3 id="totalMeasurements">0</h3>
-                                        <p>Mediciones</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-card">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-utensils"></i>
-                                    </div>
-                                    <div class="stat-content">
-                                        <h3 id="totalPlans">0</h3>
-                                        <p>Planes Alimentarios</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-card">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-chart-line"></i>
-                                    </div>
-                                    <div class="stat-content">
-                                        <h3 id="currentWeightValue">N/A</h3>
-                                        <p>Peso Actual</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
             </div>
-        </div>
-        
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-calendar-alt me-2"></i>Próxima Consulta
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="next-appointment">
-                            <div class="appointment-info">
-                                <h4 id="nextAppointmentDate">Cargando...</h4>
-                                <p class="text-muted">Tu próxima cita médica</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-utensils me-2"></i>Plan Alimentario
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="plan-info">
-                            ${patientData && patientData.planActivo ? 
-                                `<h4>${patientData.planActivo.nombre}</h4>
-                                 <p class="text-muted">Plan activo desde ${new Date(patientData.planActivo.fecha_inicio).toLocaleDateString('es-ES')}</p>
-                                 <a href="?section=plan-alimentario" class="btn btn-primary btn-sm">Ver Detalles</a>` :
-                                `<p class="text-muted">No hay plan alimentario activo</p>
-                                 <small class="text-muted">Contacta a tu profesional para obtener un plan personalizado</small>`
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <p class="mt-3 text-muted">Cargando ${sectionName}...</p>
         </div>
     `;
     
-    console.log('✅ Contenido del dashboard cargado correctamente');
+    try {
+        let html = '';
+        
+        switch (sectionName) {
+            case 'inicio':
+                html = await loadInicioSection();
+            break;
+            case 'consultas':
+                html = await loadConsultasSection();
+            break;
+            case 'mediciones':
+                html = await loadMedicionesSection();
+            break;
+            case 'plan-alimentario':
+                html = await loadPlanAlimentarioSection();
+            break;
+            case 'perfil':
+                html = await loadPerfilSection();
+            break;
+            default:
+                html = await loadInicioSection();
+        }
+        
+        content.innerHTML = html;
+        currentSection = sectionName;
+        
+        console.log(`✅ Sección ${sectionName} cargada`);
+    } catch (error) {
+        console.error(`❌ Error cargando sección ${sectionName}:`, error);
+        content.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error cargando la sección. Inténtalo de nuevo.
+        </div>
+    `;
+}
+}
+
+// Load inicio section
+async function loadInicioSection() {
+    if (!patientData) {
+        return '<div class="alert alert-warning">No hay datos del paciente disponibles</div>';
+    }
     
-    // Update statistics after loading
-    updateStatisticsCards();
+    const paciente = patientData.paciente;
+    const stats = patientData.stats || {};
+    const ultimaMedicion = patientData.ultimaMedicion;
+    const planActivo = patientData.planActivo;
+    const proximaConsulta = patientData.proximaConsulta;
+    
+    return `
+        <div class="fade-in">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-home me-2 text-primary"></i>
+                    Bienvenido, ${paciente.apellido_nombre || paciente.nombre || 'Paciente'}
+                </h2>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon consultas">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>${stats.consultas_totales || 0}</h3>
+                        <p>Consultas Totales</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon mediciones">
+                        <i class="fas fa-weight"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>${stats.mediciones_totales || 0}</h3>
+                        <p>Mediciones Registradas</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon plan">
+                        <i class="fas fa-utensils"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>${stats.planes_activos || 0}</h3>
+                        <p>Planes Activos</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Información Personal
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Nombre:</strong> ${paciente.apellido_nombre || paciente.nombre || 'No especificado'}</p>
+                            <p><strong>Email:</strong> ${paciente.email || 'No especificado'}</p>
+                            <p><strong>Teléfono:</strong> ${paciente.telefono || 'No especificado'}</p>
+                            <p><strong>Fecha de Nacimiento:</strong> ${paciente.fecha_nacimiento ? new Date(paciente.fecha_nacimiento).toLocaleDateString() : 'No especificado'}</p>
+                            <p><strong>Género:</strong> ${paciente.sexo || paciente.genero || 'No especificado'}</p>
+                            <p><strong>Dirección:</strong> ${paciente.domicilio || paciente.direccion || 'No especificada'}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Resumen de Salud
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Última Consulta:</strong> ${proximaConsulta ? new Date(proximaConsulta.fecha).toLocaleDateString() : 'No registrada'}</p>
+                            <p><strong>Última Medición:</strong> ${ultimaMedicion ? new Date(ultimaMedicion.fecha).toLocaleDateString() : 'No registrada'}</p>
+                            <p><strong>Plan Activo:</strong> ${planActivo ? 'Sí' : 'No'}</p>
+                            ${ultimaMedicion ? `
+                                <hr>
+                                <h6><i class="fas fa-weight me-2"></i>Última Medición</h6>
+                                <p><strong>Peso:</strong> ${ultimaMedicion.peso || 'N/A'} kg</p>
+                                <p><strong>Altura:</strong> ${ultimaMedicion.altura || 'N/A'} cm</p>
+                                <p><strong>IMC:</strong> ${ultimaMedicion.imc ? ultimaMedicion.imc.toFixed(1) : 'N/A'}</p>
+                            ` : ''}
+                        </div>
+                </div>
+            </div>
+        </div>
+            
+            ${proximaConsulta ? `
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-calendar-alt me-2"></i>
+                                    Próxima Consulta
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                <div class="col-md-6">
+                                        <p><strong>Fecha:</strong> ${new Date(proximaConsulta.fecha).toLocaleDateString()}</p>
+                                        <p><strong>Hora:</strong> ${proximaConsulta.hora || 'No especificada'}</p>
+                </div>
+                <div class="col-md-6">
+                                        <p><strong>Profesional:</strong> ${proximaConsulta.profesional_nombre || 'No especificado'}</p>
+                                        <p><strong>Estado:</strong> <span class="badge bg-warning">Programada</span></p>
+                                    </div>
+                                </div>
+                </div>
+            </div>
+            </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // Load consultas section
 async function loadConsultasSection() {
-    console.log('🔄 Iniciando carga de sección consultas...');
-    const content = document.getElementById('dashboard-content');
-    if (!content) {
-        console.error('❌ No se encontró el elemento dashboard-content');
-        return;
-    }
-    
-    console.log('✅ Elemento dashboard-content encontrado para consultas');
-    
     try {
-        console.log('📡 Realizando petición a /api/pacientes/consultas...');
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/pacientes/consultas', {
-            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
         
-        console.log('📡 Respuesta recibida:', response.status, response.statusText);
-        const result = await response.json();
-        console.log('📊 Datos de consultas recibidos:', result);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
-        if (result.success) {
-            const consultas = result.data;
-            
-            content.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-calendar-check me-2"></i>Mis Consultas
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        ${consultas.length > 0 ? 
-                            `<div class="table-responsive">
+        const result = await response.json();
+        const consultas = result.success ? result.data : [];
+        
+        return `
+            <div class="fade-in">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">
+                        <i class="fas fa-calendar-check me-2 text-primary"></i>
+                        Mis Consultas
+                    </h2>
+                </div>
+                
+                ${consultas.length > 0 ? `
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
                                         <tr>
                                             <th>Fecha</th>
-                                            <th>Hora</th>
+                                            <th>Profesional</th>
+                                            <th>Observaciones</th>
                                             <th>Estado</th>
-                                            <th>Objetivo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${consultas.map(consulta => `
                                             <tr>
-                                                <td>${new Date(consulta.fecha).toLocaleDateString('es-ES')}</td>
-                                                <td>${consulta.hora}</td>
-                                                <td><span class="badge bg-${getEstadoColor(consulta.estado)}">${consulta.estado}</span></td>
-                                                <td>${consulta.objetivo || 'N/A'}</td>
+                                                <td>${new Date(consulta.fecha).toLocaleDateString()}</td>
+                                                <td>${consulta.profesional_nombre || 'No especificado'}</td>
+                                                <td>${consulta.observaciones || 'Sin observaciones'}</td>
+                                                <td>
+                                                    <span class="badge bg-success">Completada</span>
+                                                </td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
                                 </table>
-                            </div>` :
-                            `<div class="text-center py-4">
-                                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No tienes consultas registradas</p>
-                            </div>`
-                        }
+                        </div>
                     </div>
                 </div>
-            `;
-        } else {
-            showAlert(result.message || 'Error cargando consultas', 'error');
-        }
-        
+                ` : `
+                    <div class="empty-state">
+                        <i class="fas fa-calendar-times"></i>
+                        <h5>No hay consultas registradas</h5>
+                        <p>Las consultas aparecerán aquí cuando sean registradas por tu profesional.</p>
+                        </div>
+                `}
+                    </div>
+        `;
     } catch (error) {
-        console.error('Error loading consultas:', error);
-        showAlert('Error de conexión', 'error');
+        console.error('Error cargando consultas:', error);
+        return `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error cargando las consultas. Inténtalo de nuevo.
+                </div>
+        `;
     }
 }
 
 // Load mediciones section
 async function loadMedicionesSection() {
-    console.log('🔄 Iniciando carga de sección mediciones...');
-    const content = document.getElementById('dashboard-content');
-    if (!content) {
-        console.error('❌ No se encontró el elemento dashboard-content');
-        return;
-    }
-    
-    console.log('✅ Elemento dashboard-content encontrado para mediciones');
-    
     try {
-        console.log('📡 Realizando petición a /api/pacientes/mediciones...');
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/pacientes/mediciones', {
-            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
         
-        console.log('📡 Respuesta recibida:', response.status, response.statusText);
-        const result = await response.json();
-        console.log('📊 Datos de mediciones recibidos:', result);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
-        if (result.success) {
-            const mediciones = result.data;
-            
-            content.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-weight me-2"></i>Mis Mediciones
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        ${mediciones.length > 0 ? 
-                            `<div class="table-responsive">
+        const result = await response.json();
+        const mediciones = result.success ? result.data : [];
+        
+        return `
+            <div class="fade-in">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">
+                        <i class="fas fa-weight me-2 text-primary"></i>
+                        Mis Mediciones
+                    </h2>
+                        </div>
+                
+                ${mediciones.length > 0 ? `
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
                                         <tr>
@@ -473,772 +448,320 @@ async function loadMedicionesSection() {
                                             <th>Peso (kg)</th>
                                             <th>Altura (cm)</th>
                                             <th>IMC</th>
+                                            <th>Observaciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${mediciones.map(medicion => `
                                             <tr>
-                                                <td>${new Date(medicion.fecha).toLocaleDateString('es-ES')}</td>
+                                                <td>${new Date(medicion.fecha).toLocaleDateString()}</td>
                                                 <td>${medicion.peso || 'N/A'}</td>
                                                 <td>${medicion.altura || 'N/A'}</td>
-                                                <td>${medicion.imc || 'N/A'}</td>
+                                                <td>${medicion.imc ? medicion.imc.toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.observaciones || 'Sin observaciones'}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
                                 </table>
-                            </div>` :
-                            `<div class="text-center py-4">
-                                <i class="fas fa-weight fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No tienes mediciones registradas</p>
-                            </div>`
-                        }
                     </div>
                 </div>
-            `;
-        } else {
-            showAlert(result.message || 'Error cargando mediciones', 'error');
-        }
-        
+            </div>
+                ` : `
+                    <div class="empty-state">
+                        <i class="fas fa-weight-hanging"></i>
+                        <h5>No hay mediciones registradas</h5>
+                        <p>Las mediciones aparecerán aquí cuando sean registradas por tu profesional.</p>
+                    </div>
+                `}
+            </div>
+        `;
     } catch (error) {
-        console.error('Error loading mediciones:', error);
-        showAlert('Error de conexión', 'error');
-    }
+        console.error('Error cargando mediciones:', error);
+        return `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error cargando las mediciones. Inténtalo de nuevo.
+        </div>
+    `;
+}
 }
 
 // Load plan alimentario section
 async function loadPlanAlimentarioSection() {
-    console.log('🔄 Iniciando carga de sección plan alimentario...');
-    const content = document.getElementById('dashboard-content');
-    if (!content) {
-        console.error('❌ No se encontró el elemento dashboard-content');
-        return;
-    }
-    
-    console.log('✅ Elemento dashboard-content encontrado para plan alimentario');
-    
     try {
-        console.log('📡 Realizando petición a /api/pacientes/plan-alimentario...');
+        const token = localStorage.getItem('token');
         const response = await fetch('/api/pacientes/plan-alimentario', {
-            method: 'GET',
             headers: {
-                'Authorization': `Bearer ${authToken}`,
+                'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
         
-        console.log('📡 Respuesta recibida:', response.status, response.statusText);
-        const result = await response.json();
-        console.log('📊 Datos de plan alimentario recibidos:', result);
-        
-        if (result.success && result.data) {
-            const plan = result.data;
-            
-            content.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-utensils me-2"></i>Mi Plan Alimentario
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="plan-details">
-                            <h4>${plan.nombre}</h4>
-                            <p class="text-muted">${plan.descripcion || 'Sin descripción'}</p>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Fecha de inicio:</strong> ${new Date(plan.fecha_inicio).toLocaleDateString('es-ES')}</p>
-                                    <p><strong>Calorías diarias:</strong> ${plan.calorias_diarias || 'N/A'}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Objetivo:</strong> ${plan.objetivo || 'N/A'}</p>
-                                    <p><strong>Estado:</strong> <span class="badge bg-success">Activo</span></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            content.innerHTML = `
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-utensils me-2"></i>Mi Plan Alimentario
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="text-center py-4">
-                            <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No tienes un plan alimentario activo</p>
-                            <small class="text-muted">Contacta a tu profesional para obtener un plan personalizado</small>
-                        </div>
-                    </div>
-                </div>
-            `;
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
+        const result = await response.json();
+        const plan = result.success ? result.data : null;
+        
+        return `
+            <div class="fade-in">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">
+                        <i class="fas fa-utensils me-2 text-primary"></i>
+                        Mi Plan Alimentario
+                    </h2>
+                </div>
+                
+                ${plan ? `
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-clipboard-list me-2"></i>
+                                ${plan.nombre || 'Plan Alimentario'}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Información del Plan</h6>
+                                    <p><strong>Nombre:</strong> ${plan.nombre || 'No especificado'}</p>
+                                    <p><strong>Descripción:</strong> ${plan.descripcion || 'Sin descripción'}</p>
+                                    <p><strong>Fecha de Inicio:</strong> ${plan.fecha_inicio ? new Date(plan.fecha_inicio).toLocaleDateString() : 'No especificada'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-chart-pie me-2"></i>Objetivos</h6>
+                                    <p><strong>Calorías Diarias:</strong> ${plan.calorias_diarias || 'No especificadas'}</p>
+                                    <p><strong>Objetivo:</strong> ${plan.objetivo || 'No especificado'}</p>
+                    </div>
+                </div>
+                            
+                            ${plan.comidas && plan.comidas.length > 0 ? `
+                                <hr>
+                                <h6><i class="fas fa-utensils me-2"></i>Comidas del Plan</h6>
+                                <div class="row">
+                                    ${plan.comidas.map(comida => `
+                                        <div class="col-md-6 mb-3">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h6 class="mb-0">${comida.tipo_comida}</h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p class="mb-1"><strong>Alimentos:</strong> ${comida.alimentos || 'No especificados'}</p>
+                                                    <p class="mb-1"><strong>Cantidad:</strong> ${comida.cantidad || 'No especificada'}</p>
+                                                    <p class="mb-0"><strong>Horario:</strong> ${comida.horario || 'No especificado'}</p>
+                    </div>
+                </div>
+            </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="empty-state">
+                        <i class="fas fa-utensils"></i>
+                        <h5>No hay plan alimentario asignado</h5>
+                        <p>Tu profesional te asignará un plan alimentario personalizado.</p>
+                    </div>
+                `}
+            </div>
+        `;
     } catch (error) {
-        console.error('Error loading plan alimentario:', error);
-        showAlert('Error de conexión', 'error');
-    }
+        console.error('Error cargando plan alimentario:', error);
+        return `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error cargando el plan alimentario. Inténtalo de nuevo.
+        </div>
+    `;
+}
 }
 
 // Load perfil section
 async function loadPerfilSection() {
-    const content = document.getElementById('dashboard-content');
-    if (!content) return;
-    
-    if (!patientData || !patientData.paciente) return;
+    if (!patientData) {
+        return '<div class="alert alert-warning">No hay datos del paciente disponibles</div>';
+    }
     
     const paciente = patientData.paciente;
     
-    content.innerHTML = `
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-user me-2"></i>Mi Perfil
-                </h5>
+    return `
+        <div class="fade-in">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-user me-2 text-primary"></i>
+                    Mi Perfil
+                </h2>
             </div>
-            <div class="card-body">
-                <form id="perfilForm">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="apellido_nombre" class="form-label">Nombre Completo</label>
-                                <input type="text" class="form-control" id="apellido_nombre" value="${paciente.apellido_nombre}" readonly>
-                            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user-circle me-2"></i>
+                                Información Personal
+                            </h5>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="numero_documento" class="form-label">Número de Documento</label>
-                                <input type="text" class="form-control" id="numero_documento" value="${paciente.numero_documento || ''}" readonly>
-                            </div>
+                        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Nombre Completo</strong></label>
+                                        <p class="form-control-plaintext">${paciente.apellido_nombre || paciente.nombre || 'No especificado'}</p>
+                        </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Email</strong></label>
+                                        <p class="form-control-plaintext">${paciente.email || 'No especificado'}</p>
+                        </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Teléfono</strong></label>
+                                        <p class="form-control-plaintext">${paciente.telefono || 'No especificado'}</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Fecha de Nacimiento</strong></label>
+                                        <p class="form-control-plaintext">${paciente.fecha_nacimiento ? new Date(paciente.fecha_nacimiento).toLocaleDateString() : 'No especificada'}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Género</strong></label>
+                                        <p class="form-control-plaintext">${paciente.sexo || paciente.genero || 'No especificado'}</p>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Dirección</strong></label>
+                                        <p class="form-control-plaintext">${paciente.domicilio || paciente.direccion || 'No especificada'}</p>
+                        </div>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" value="${paciente.email || ''}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="telefono" class="form-label">Teléfono</label>
-                                <input type="tel" class="form-control" id="telefono" value="${paciente.telefono || ''}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="domicilio" class="form-label">Domicilio</label>
-                                <input type="text" class="form-control" id="domicilio" value="${paciente.domicilio || ''}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="localidad" class="form-label">Localidad</label>
-                                <input type="text" class="form-control" id="localidad" value="${paciente.localidad || ''}">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <button type="button" class="btn btn-outline-secondary" onclick="loadSectionContent('dashboard')">
-                            <i class="fas fa-arrow-left me-2"></i>Volver
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>Guardar Cambios
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-        
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-lock me-2"></i>Cambiar Contraseña
-                </h5>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Estadísticas
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="stat-icon inicio mx-auto mb-2">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <h4>${patientData.stats?.consultas_totales || 0}</h4>
+                                <p class="text-muted mb-0">Consultas Totales</p>
+                            </div>
+                            
+                            <div class="text-center mb-3">
+                                <div class="stat-icon mediciones mx-auto mb-2">
+                                    <i class="fas fa-weight"></i>
+                </div>
+                                <h4>${patientData.stats?.mediciones_totales || 0}</h4>
+                                <p class="text-muted mb-0">Mediciones</p>
+                </div>
+                            
+                            <div class="text-center">
+                                <div class="stat-icon plan mx-auto mb-2">
+                                    <i class="fas fa-utensils"></i>
             </div>
-            <div class="card-body">
-                <form id="cambiarContrasenaForm">
-                    <div class="mb-3">
-                        <label for="contrasenaActual" class="form-label">Contraseña Actual</label>
-                        <input type="password" class="form-control" id="contrasenaActual" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="nuevaContrasena" class="form-label">Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="nuevaContrasena" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="confirmarContrasena" class="form-label">Confirmar Nueva Contraseña</label>
-                        <input type="password" class="form-control" id="confirmarContrasena" required>
-                    </div>
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-key me-2"></i>Cambiar Contraseña
-                    </button>
-                </form>
+                                <h4>${patientData.stats?.planes_activos || 0}</h4>
+                                <p class="text-muted mb-0">Planes Activos</p>
+                </div>
+                </div>
+            </div>
+                </div>
             </div>
         </div>
     `;
-    
-    // Add form event listeners
-    document.getElementById('perfilForm').addEventListener('submit', handlePerfilUpdate);
-    document.getElementById('cambiarContrasenaForm').addEventListener('submit', handleCambiarContrasena);
-}
-
-// Handle perfil update
-async function handlePerfilUpdate(event) {
-    event.preventDefault();
-    
-    const formData = {
-        email: document.getElementById('email').value,
-        telefono: document.getElementById('telefono').value,
-        domicilio: document.getElementById('domicilio').value,
-        localidad: document.getElementById('localidad').value
-    };
-    
-    try {
-        const response = await fetch('/api/pacientes/perfil', {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Perfil actualizado exitosamente', 'success');
-            // Reload patient data
-            await loadPatientData();
-        } else {
-            showAlert(result.message || 'Error actualizando perfil', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error updating perfil:', error);
-        showAlert('Error de conexión', 'error');
-    }
-}
-
-// Handle cambiar contraseña
-async function handleCambiarContrasena(event) {
-    event.preventDefault();
-    
-    const contrasenaActual = document.getElementById('contrasenaActual').value;
-    const nuevaContrasena = document.getElementById('nuevaContrasena').value;
-    const confirmarContrasena = document.getElementById('confirmarContrasena').value;
-    
-    if (nuevaContrasena !== confirmarContrasena) {
-        showAlert('Las contraseñas no coinciden', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/pacientes/cambiar-contrasena', {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                contrasenaActual,
-                nuevaContrasena
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert('Contraseña cambiada exitosamente', 'success');
-            // Clear form
-            document.getElementById('cambiarContrasenaForm').reset();
-        } else {
-            showAlert(result.message || 'Error cambiando contraseña', 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error changing password:', error);
-        showAlert('Error de conexión', 'error');
-    }
-}
-
-// Initialize sidebar
-function initSidebar() {
-    console.log('🔄 Inicializando sidebar...');
-    const sidebarLinks = document.querySelectorAll('.sidebar-nav .nav-link');
-    console.log('📊 Enlaces del sidebar encontrados:', sidebarLinks.length);
-    
-    sidebarLinks.forEach((link, index) => {
-        console.log(`🔗 Configurando enlace ${index + 1}:`, link.getAttribute('data-section'));
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('🖱️ Click en enlace del sidebar:', this.getAttribute('data-section'));
-            
-            // Remove active class from all links
-            sidebarLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
-            this.classList.add('active');
-            
-            // Get section from data-section attribute
-            const section = this.getAttribute('data-section');
-            if (section) {
-                console.log('📂 Cargando sección:', section);
-                loadSectionContent(section);
-                // Update URL
-                const url = new URL(window.location);
-                url.searchParams.set('section', section);
-                window.history.pushState({}, '', url);
-            }
-        });
-    });
-    
-    console.log('✅ Sidebar inicializado correctamente');
 }
 
 // Setup event listeners
 function setupEventListeners() {
+    console.log('🎧 Configurando event listeners...');
+    
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
     
-    // Refresh button
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            loadPatientData();
-        });
-    }
-    
-    // Mobile sidebar toggle
-    const navbarToggler = document.querySelector('.navbar-toggler');
-    if (navbarToggler) {
-        navbarToggler.addEventListener('click', function() {
-            const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.toggle('show');
-        });
-    }
-    
-    // Close sidebar when clicking outside on mobile
-    document.addEventListener('click', function(e) {
-        const sidebar = document.querySelector('.sidebar');
-        const navbarToggler = document.querySelector('.navbar-toggler');
-        
-        if (window.innerWidth <= 768 && 
-            !sidebar.contains(e.target) && 
-            !navbarToggler.contains(e.target)) {
-            sidebar.classList.remove('show');
-        }
-    });
-}
-
-// Setup data refresh
-function setupDataRefresh() {
-    // Refresh data every 5 minutes
-    setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            loadPatientData();
-        }
-    }, 5 * 60 * 1000);
-}
-
-// Show loading state
-function showLoadingState() {
-    const loadingElement = document.getElementById('loadingIndicator');
-    if (loadingElement) {
-        loadingElement.style.display = 'block';
-    }
-}
-
-// Hide loading state
-function hideLoadingState() {
-    const loadingElement = document.getElementById('loadingIndicator');
-    if (loadingElement) {
-        loadingElement.style.display = 'none';
-    }
-}
-
-// Get estado color for badges
-function getEstadoColor(estado) {
-    const colors = {
-        'activo': 'primary',
-        'completado': 'success',
-        'cancelado': 'danger',
-        'ausente': 'warning'
-    };
-    return colors[estado] || 'secondary';
+    console.log('✅ Event listeners configurados');
 }
 
 // Logout function
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-}
-
-// Show alert function
-function showAlert(message, type = 'info') {
-    // Remove existing alerts
-    const existingAlerts = document.querySelectorAll('.custom-alert');
-    existingAlerts.forEach(alert => alert.remove());
-
-    // Create alert element
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} custom-alert position-fixed`;
-    alertDiv.style.cssText = `
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border-radius: 10px;
-        border: none;
-        animation: slideInRight 0.3s ease-out;
-    `;
-    
-    alertDiv.innerHTML = `
-        <div class="d-flex align-items-center">
-            <i class="fas fa-${getAlertIcon(type)} me-2"></i>
-            <span>${message}</span>
-            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
-        </div>
-    `;
-
-    // Add to body
-    document.body.appendChild(alertDiv);
-
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        if (alertDiv.parentElement) {
-            alertDiv.remove();
-        }
-    }, 5000);
-}
-
-// Get alert icon based on type
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle',
-        'error': 'exclamation-triangle'
-    };
-    return icons[type] || 'info-circle';
-}
-
-// Add CSS for animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    
-    .stat-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stat-content h3 {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-    
-    .next-appointment {
-        text-align: center;
-        padding: 2rem;
-    }
-    
-    .appointment-info h4 {
-        color: #28a745;
-        font-weight: bold;
-    }
-    
-    .plan-info {
-        text-align: center;
-        padding: 1rem;
-    }
-    
-    .loading {
-        opacity: 0.6;
-        pointer-events: none;
-    }
-`;
-document.head.appendChild(style);
-
-// Load section content
-function loadSectionContent(sectionName) {
-    const section = document.getElementById(sectionName + '-section');
-    
-    switch(sectionName) {
-        case 'dashboard':
-            loadDashboardContent();
-            break;
-        case 'plan':
-            loadPlanContent();
-            break;
-        case 'registro':
-            loadRegistroContent();
-            break;
-        case 'progreso':
-            loadProgresoContent();
-            break;
-        case 'historial':
-            loadHistorialContent();
-            break;
-        case 'turnos':
-            loadTurnosContent();
-            break;
-        case 'mensajes':
-            loadMensajesContent();
-            break;
-    }
-}
-
-// Load dashboard content
-function loadDashboardContent() {
-    console.log('Loading dashboard content...');
-    // Dashboard content is already loaded in HTML
-}
-
-// Load plan content
-function loadPlanContent() {
-    const section = document.getElementById('plan-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="plan-content">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5>Desayuno</h5>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">Avena con frutas</li>
-                        <li class="list-group-item">Yogur griego</li>
-                        <li class="list-group-item">Té verde</li>
-                    </ul>
-                </div>
-                <div class="col-md-6">
-                    <h5>Almuerzo</h5>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item">Ensalada mixta</li>
-                        <li class="list-group-item">Pollo a la plancha</li>
-                        <li class="list-group-item">Arroz integral</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Load registro content
-function loadRegistroContent() {
-    const section = document.getElementById('registro-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="registro-content">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label">Tipo de comida</label>
-                    <select class="form-select">
-                        <option>Desayuno</option>
-                        <option>Almuerzo</option>
-                        <option>Merienda</option>
-                        <option>Cena</option>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Hora</label>
-                    <input type="time" class="form-control">
-                </div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Descripción</label>
-                <textarea class="form-control" rows="3" placeholder="Describe lo que comiste..."></textarea>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Foto (opcional)</label>
-                <input type="file" class="form-control" accept="image/*">
-            </div>
-            <button class="btn btn-primary">Registrar Comida</button>
-        </div>
-    `;
-}
-
-// Load progreso content
-function loadProgresoContent() {
-    const section = document.getElementById('progreso-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="progreso-content">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="progress-card">
-                        <h6>Peso</h6>
-                        <div class="progress mb-2">
-                            <div class="progress-bar" style="width: 75%"></div>
-                        </div>
-                        <small class="text-muted">75.2 kg / 70.0 kg objetivo</small>
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title" id="logoutModalLabel">
+                            <i class="fas fa-sign-out-alt text-warning me-2"></i>
+                            Cerrar Sesión
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="progress-card">
-                        <h6>Calorías</h6>
-                        <div class="progress mb-2">
-                            <div class="progress-bar bg-success" style="width: 70%"></div>
+                    <div class="modal-body text-center py-4">
+                        <div class="mb-3">
+                            <i class="fas fa-question-circle text-primary" style="font-size: 3rem;"></i>
                         </div>
-                        <small class="text-muted">1,250 / 1,800 cal</small>
+                        <h6 class="mb-3">¿Estás seguro de que quieres cerrar sesión?</h6>
+                        <p class="text-muted mb-0">Se perderá tu sesión actual y tendrás que volver a iniciar sesión.</p>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="progress-card">
-                        <h6>Agua</h6>
-                        <div class="progress mb-2">
-                            <div class="progress-bar bg-info" style="width: 60%"></div>
-                        </div>
-                        <small class="text-muted">1.2L / 2L objetivo</small>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </button>
+                        <button type="button" class="btn btn-danger" id="confirmLogout">
+                            <i class="fas fa-sign-out-alt me-1"></i>Sí, Cerrar Sesión
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     `;
-}
-
-// Load historial content
-function loadHistorialContent() {
-    const section = document.getElementById('historial-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="historial-content">
-            <div class="timeline">
-                <div class="timeline-item">
-                    <div class="timeline-marker"></div>
-                    <div class="timeline-content">
-                        <h6>Consulta de seguimiento</h6>
-                        <p class="text-muted">10 de Enero, 2024</p>
-                        <p>Control de peso y ajuste del plan alimentario.</p>
-                    </div>
-                </div>
-                <div class="timeline-item">
-                    <div class="timeline-marker"></div>
-                    <div class="timeline-content">
-                        <h6>Primera consulta</h6>
-                        <p class="text-muted">15 de Diciembre, 2023</p>
-                        <p>Evaluación inicial y creación del plan nutricional.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Load turnos content
-function loadTurnosContent() {
-    const section = document.getElementById('turnos-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="turnos-content">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5>Próximos turnos</h5>
-                    <div class="appointment-card">
-                        <div class="appointment-date">
-                            <span class="day">15</span>
-                            <span class="month">Ene</span>
-                        </div>
-                        <div class="appointment-details">
-                            <h6>Consulta de seguimiento</h6>
-                            <p class="text-muted">10:00 - 10:30</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <h5>Historial de turnos</h5>
-                    <div class="appointment-card">
-                        <div class="appointment-date">
-                            <span class="day">10</span>
-                            <span class="month">Ene</span>
-                        </div>
-                        <div class="appointment-details">
-                            <h6>Consulta de seguimiento</h6>
-                            <p class="text-muted">10:00 - 10:30</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Load mensajes content
-function loadMensajesContent() {
-    const section = document.getElementById('mensajes-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="mensajes-content">
-            <div class="message-item">
-                <div class="message-header">
-                    <strong>Dr. Allendez</strong>
-                    <small class="text-muted">Hace 2 horas</small>
-                </div>
-                <div class="message-content">
-                    <p>Hola! ¿Cómo te está yendo con el nuevo plan alimentario?</p>
-                </div>
-            </div>
-            <div class="message-item">
-                <div class="message-header">
-                    <strong>Dr. Allendez</strong>
-                    <small class="text-muted">Ayer</small>
-                </div>
-                <div class="message-content">
-                    <p>Recuerda tomar mucha agua durante el día.</p>
-                </div>
-            </div>
-            <div class="message-input">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Escribe tu mensaje...">
-                    <button class="btn btn-primary">Enviar</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Show profile
-function showProfile() {
-    showAlert('Función de perfil próximamente disponible', 'info');
-}
-
-// Show settings
-function showSettings() {
-    showAlert('Función de configuración próximamente disponible', 'info');
-}
-
-// Logout
-function logout() {
-    if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-        // Clear localStorage
-        localStorage.removeItem('username');
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('logoutModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('logoutModal'));
+    modal.show();
+    
+    // Handle confirm logout
+    document.getElementById('confirmLogout').addEventListener('click', function() {
+        // Show loading state
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Cerrando...';
+        this.disabled = true;
         
+        // Clear localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user'); // Cambiado de 'userData' a 'user'
+        sessionStorage.clear();
+        
+        // Show success message briefly
+        setTimeout(() => {
+            modal.hide();
         // Redirect to login
-        window.location.href = '../login/index.html';
-    }
+            window.location.href = '/login';
+        }, 1000);
+    });
+    
+    // Clean up modal when hidden
+    document.getElementById('logoutModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
 }
 
 // Show alert function
@@ -1247,26 +770,14 @@ function showAlert(message, type = 'info') {
     const existingAlerts = document.querySelectorAll('.custom-alert');
     existingAlerts.forEach(alert => alert.remove());
 
-    // Create alert element
+    // Create alert
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} custom-alert position-fixed`;
-    alertDiv.style.cssText = `
-        top: 100px;
-        right: 20px;
-        z-index: 9999;
-        min-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        border-radius: 10px;
-        border: none;
-        animation: slideInRight 0.3s ease-out;
-    `;
-    
+    alertDiv.style.cssText = 'top: 100px; right: 20px; z-index: 9999; min-width: 300px;';
     alertDiv.innerHTML = `
-        <div class="d-flex align-items-center">
             <i class="fas fa-${getAlertIcon(type)} me-2"></i>
-            <span>${message}</span>
-            <button type="button" class="btn-close ms-auto" onclick="this.parentElement.parentElement.remove()"></button>
-        </div>
+        ${message}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
     `;
 
     // Add to body
