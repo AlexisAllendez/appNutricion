@@ -3,6 +3,76 @@
 // Global variables
 let patientData = null;
 let currentSection = 'inicio';
+let professionalData = null;
+
+// Get professional data for timezone handling
+async function getProfessionalData() {
+    if (professionalData) {
+        return professionalData;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            console.warn('No token found for professional data');
+            return null;
+        }
+        
+        const response = await fetch('/api/profesionales/perfil', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                professionalData = result.data;
+                console.log('✅ Professional data loaded:', professionalData);
+                return professionalData;
+            }
+        }
+        
+        console.warn('Failed to load professional data');
+        return null;
+    } catch (error) {
+        console.error('Error loading professional data:', error);
+        return null;
+    }
+}
+
+// Format date using professional's timezone
+async function formatDateWithTimezone(dateString) {
+    if (!dateString || dateString === 'Sin fecha') {
+        return 'Sin fecha';
+    }
+    
+    try {
+        const profesional = await getProfessionalData();
+        const timezone = profesional?.timezone || 'UTC';
+        
+        console.log('🕐 Formateando fecha con zona horaria:', timezone);
+        
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) {
+            return 'Fecha inválida';
+        }
+        
+        const formatter = new Intl.DateTimeFormat('es-ES', {
+            timeZone: timezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        return formatter.format(date);
+    } catch (error) {
+        console.warn('Error formateando fecha con zona horaria:', error);
+        // Fallback to simple format
+        return new Date(dateString).toLocaleDateString();
+    }
+}
 
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -219,6 +289,12 @@ async function loadInicioSection() {
     const planActivo = patientData.planActivo;
     const proximaConsulta = patientData.proximaConsulta;
     
+    // Format dates with professional's timezone
+    const fechaNacimiento = paciente.fecha_nacimiento ? await formatDateWithTimezone(paciente.fecha_nacimiento) : 'No especificado';
+    const ultimaConsultaFecha = proximaConsulta ? await formatDateWithTimezone(proximaConsulta.fecha) : 'No registrada';
+    const ultimaMedicionFecha = ultimaMedicion ? await formatDateWithTimezone(ultimaMedicion.fecha) : 'No registrada';
+    const proximaConsultaFecha = proximaConsulta ? await formatDateWithTimezone(proximaConsulta.fecha) : 'No especificada';
+    
     return `
         <div class="fade-in">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -273,7 +349,7 @@ async function loadInicioSection() {
                             <p><strong>Nombre:</strong> ${paciente.apellido_nombre || paciente.nombre || 'No especificado'}</p>
                             <p><strong>Email:</strong> ${paciente.email || 'No especificado'}</p>
                             <p><strong>Teléfono:</strong> ${paciente.telefono || 'No especificado'}</p>
-                            <p><strong>Fecha de Nacimiento:</strong> ${paciente.fecha_nacimiento ? new Date(paciente.fecha_nacimiento).toLocaleDateString() : 'No especificado'}</p>
+                            <p><strong>Fecha de Nacimiento:</strong> ${fechaNacimiento}</p>
                             <p><strong>Género:</strong> ${paciente.sexo || paciente.genero || 'No especificado'}</p>
                             <p><strong>Dirección:</strong> ${paciente.domicilio || paciente.direccion || 'No especificada'}</p>
                         </div>
@@ -289,15 +365,15 @@ async function loadInicioSection() {
                             </h5>
                         </div>
                         <div class="card-body">
-                            <p><strong>Última Consulta:</strong> ${proximaConsulta ? new Date(proximaConsulta.fecha).toLocaleDateString() : 'No registrada'}</p>
-                            <p><strong>Última Medición:</strong> ${ultimaMedicion ? new Date(ultimaMedicion.fecha).toLocaleDateString() : 'No registrada'}</p>
+                            <p><strong>Última Consulta:</strong> ${ultimaConsultaFecha}</p>
+                            <p><strong>Última Medición:</strong> ${ultimaMedicionFecha}</p>
                             <p><strong>Plan Activo:</strong> ${planActivo ? 'Sí' : 'No'}</p>
                             ${ultimaMedicion ? `
                                 <hr>
                                 <h6><i class="fas fa-weight me-2"></i>Última Medición</h6>
                                 <p><strong>Peso:</strong> ${ultimaMedicion.peso || 'N/A'} kg</p>
                                 <p><strong>Altura:</strong> ${ultimaMedicion.altura || 'N/A'} cm</p>
-                                <p><strong>IMC:</strong> ${ultimaMedicion.imc ? ultimaMedicion.imc.toFixed(1) : 'N/A'}</p>
+                                <p><strong>IMC:</strong> ${ultimaMedicion.imc ? parseFloat(ultimaMedicion.imc).toFixed(1) : 'N/A'}</p>
                             ` : ''}
                         </div>
                 </div>
@@ -317,7 +393,7 @@ async function loadInicioSection() {
                             <div class="card-body">
                                 <div class="row">
                 <div class="col-md-6">
-                                        <p><strong>Fecha:</strong> ${new Date(proximaConsulta.fecha).toLocaleDateString()}</p>
+                                        <p><strong>Fecha:</strong> ${proximaConsultaFecha}</p>
                                         <p><strong>Hora:</strong> ${proximaConsulta.hora || 'No especificada'}</p>
                 </div>
                 <div class="col-md-6">
@@ -352,6 +428,14 @@ async function loadConsultasSection() {
         const result = await response.json();
         const consultas = result.success ? result.data : [];
         
+        // Process consultas with timezone-aware date formatting
+        const consultasProcessed = await Promise.all(
+            consultas.map(async consulta => ({
+                ...consulta,
+                fechaFormateada: await formatDateWithTimezone(consulta.fecha)
+            }))
+        );
+        
         return `
             <div class="fade-in">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -361,7 +445,7 @@ async function loadConsultasSection() {
                     </h2>
                 </div>
                 
-                ${consultas.length > 0 ? `
+                ${consultasProcessed.length > 0 ? `
                     <div class="card">
                         <div class="card-body">
                             <div class="table-responsive">
@@ -375,9 +459,9 @@ async function loadConsultasSection() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${consultas.map(consulta => `
+                                        ${consultasProcessed.map(consulta => `
                                             <tr>
-                                                <td>${new Date(consulta.fecha).toLocaleDateString()}</td>
+                                                <td>${consulta.fechaFormateada}</td>
                                                 <td>${consulta.profesional_nombre || 'No especificado'}</td>
                                                 <td>${consulta.observaciones || 'Sin observaciones'}</td>
                                                 <td>
@@ -428,6 +512,14 @@ async function loadMedicionesSection() {
         const result = await response.json();
         const mediciones = result.success ? result.data : [];
         
+        // Process mediciones with timezone-aware date formatting
+        const medicionesProcessed = await Promise.all(
+            mediciones.map(async medicion => ({
+                ...medicion,
+                fechaFormateada: await formatDateWithTimezone(medicion.fecha)
+            }))
+        );
+        
         return `
             <div class="fade-in">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -437,7 +529,7 @@ async function loadMedicionesSection() {
                     </h2>
                         </div>
                 
-                ${mediciones.length > 0 ? `
+                ${medicionesProcessed.length > 0 ? `
                     <div class="card">
                         <div class="card-body">
                             <div class="table-responsive">
@@ -448,16 +540,28 @@ async function loadMedicionesSection() {
                                             <th>Peso (kg)</th>
                                             <th>Altura (cm)</th>
                                             <th>IMC</th>
+                                            <th>Cintura (cm)</th>
+                                            <th>Cadera (cm)</th>
+                                            <th>Pliegue Tricipital (mm)</th>
+                                            <th>Pliegue Subescapular (mm)</th>
+                                            <th>% Grasa</th>
+                                            <th>Masa Muscular (kg)</th>
                                             <th>Observaciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${mediciones.map(medicion => `
+                                        ${medicionesProcessed.map(medicion => `
                                             <tr>
-                                                <td>${new Date(medicion.fecha).toLocaleDateString()}</td>
-                                                <td>${medicion.peso || 'N/A'}</td>
-                                                <td>${medicion.altura || 'N/A'}</td>
-                                                <td>${medicion.imc ? medicion.imc.toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.fechaFormateada}</td>
+                                                <td>${medicion.peso ? parseFloat(medicion.peso).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.altura ? parseFloat(medicion.altura).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.imc ? parseFloat(medicion.imc).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.circunferencia_cintura ? parseFloat(medicion.circunferencia_cintura).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.circunferencia_cadera ? parseFloat(medicion.circunferencia_cadera).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.pliegue_tricipital ? parseFloat(medicion.pliegue_tricipital).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.pliegue_subescapular ? parseFloat(medicion.pliegue_subescapular).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.porcentaje_grasa ? parseFloat(medicion.porcentaje_grasa).toFixed(1) : 'N/A'}</td>
+                                                <td>${medicion.masa_muscular ? parseFloat(medicion.masa_muscular).toFixed(1) : 'N/A'}</td>
                                                 <td>${medicion.observaciones || 'Sin observaciones'}</td>
                                             </tr>
                                         `).join('')}
@@ -504,6 +608,9 @@ async function loadPlanAlimentarioSection() {
         const result = await response.json();
         const plan = result.success ? result.data : null;
         
+        // Format date with professional's timezone
+        const fechaInicio = plan && plan.fecha_inicio ? await formatDateWithTimezone(plan.fecha_inicio) : 'No especificada';
+        
         return `
             <div class="fade-in">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -527,7 +634,7 @@ async function loadPlanAlimentarioSection() {
                                     <h6><i class="fas fa-info-circle me-2"></i>Información del Plan</h6>
                                     <p><strong>Nombre:</strong> ${plan.nombre || 'No especificado'}</p>
                                     <p><strong>Descripción:</strong> ${plan.descripcion || 'Sin descripción'}</p>
-                                    <p><strong>Fecha de Inicio:</strong> ${plan.fecha_inicio ? new Date(plan.fecha_inicio).toLocaleDateString() : 'No especificada'}</p>
+                                    <p><strong>Fecha de Inicio:</strong> ${fechaInicio}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <h6><i class="fas fa-chart-pie me-2"></i>Objetivos</h6>
@@ -586,6 +693,9 @@ async function loadPerfilSection() {
     
     const paciente = patientData.paciente;
     
+    // Format date with professional's timezone
+    const fechaNacimiento = paciente.fecha_nacimiento ? await formatDateWithTimezone(paciente.fecha_nacimiento) : 'No especificada';
+    
     return `
         <div class="fade-in">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -623,7 +733,7 @@ async function loadPerfilSection() {
                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label"><strong>Fecha de Nacimiento</strong></label>
-                                        <p class="form-control-plaintext">${paciente.fecha_nacimiento ? new Date(paciente.fecha_nacimiento).toLocaleDateString() : 'No especificada'}</p>
+                                        <p class="form-control-plaintext">${fechaNacimiento}</p>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label"><strong>Género</strong></label>
