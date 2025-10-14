@@ -15,18 +15,32 @@
     <link rel="stylesheet" href="patient-history.css">
     <link rel="stylesheet" href="patient-history-evolution.css">
 </head>
-<body>
+<body class="dashboard-body">
     <!-- Top Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-        <div class="container-fluid px-3">
+        <div class="container-fluid">
             <a class="navbar-brand fw-bold" href="#" id="backLink">
-                <i class="fas fa-arrow-left me-2"></i>Sistema Nutricional
+                <i class="fas fa-leaf me-2"></i>Sistema Nutricional
             </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text">
-                    <i class="fas fa-user-md me-2"></i>
-                    <span id="professionalName">Dr. Profesional</span>
-                </span>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-md me-2"></i>
+                            <span id="professionalName">Dr. Profesional</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
             </div>
         </div>
     </nav>

@@ -361,7 +361,7 @@ class UsuarioController {
             }
             
             // Si se crea cuenta, validar usuario y contraseña
-            if (pacienteData.crear_cuenta !== false) {
+            if (pacienteData.crear_cuenta === true) {
                 if (!pacienteData.usuario || !pacienteData.contrasena) {
                     return res.status(400).json({
                         success: false,
@@ -369,9 +369,9 @@ class UsuarioController {
                     });
                 }
             } else {
-                // Si no se crea cuenta, generar usuario temporal y contraseña por defecto
-                pacienteData.usuario = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-                pacienteData.contrasena = 'temp_password_' + Math.random().toString(36).substr(2, 8);
+                // Si no se crea cuenta, no establecer usuario ni contraseña
+                delete pacienteData.usuario;
+                delete pacienteData.contrasena;
             }
 
             // Crear paciente
@@ -380,7 +380,7 @@ class UsuarioController {
             // Invalidar caché del profesional
             pacienteService.invalidateProfesionalCache(profesionalId);
             
-            const message = pacienteData.crear_cuenta !== false 
+            const message = pacienteData.crear_cuenta === true 
                 ? 'Paciente creado exitosamente con cuenta de usuario'
                 : 'Paciente creado exitosamente (sin cuenta de usuario)';
             
@@ -389,7 +389,7 @@ class UsuarioController {
                 message: message,
                 data: { 
                     id: pacienteId,
-                    tiene_cuenta: pacienteData.crear_cuenta !== false
+                    tiene_cuenta: pacienteData.crear_cuenta === true
                 }
             });
             
@@ -404,6 +404,135 @@ class UsuarioController {
                 });
             }
             
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+
+    // Resetear contraseña de paciente
+    static async resetPatientPassword(req, res) {
+        try {
+            const { id } = req.params;
+            const { nueva_contrasena } = req.body;
+            
+            if (!id || isNaN(id)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de paciente inválido'
+                });
+            }
+            
+            if (!nueva_contrasena) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Nueva contraseña es obligatoria'
+                });
+            }
+            
+            if (nueva_contrasena.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La contraseña debe tener al menos 6 caracteres'
+                });
+            }
+            
+            // Verificar que el paciente existe
+            const paciente = await Usuario.findById(id);
+            if (!paciente) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Paciente no encontrado'
+                });
+            }
+            
+            // Verificar que el paciente tiene cuenta
+            const tieneCuenta = await Usuario.hasValidAccount(id);
+            if (!tieneCuenta) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'El paciente no tiene cuenta de usuario'
+                });
+            }
+            
+            // Hashear la nueva contraseña
+            const hashedPassword = await bcrypt.hash(nueva_contrasena, 10);
+            
+            // Actualizar la contraseña
+            const query = 'UPDATE usuarios SET contrasena = ? WHERE id = ?';
+            await Usuario.executeQuery(query, [hashedPassword, id]);
+            
+            res.json({
+                success: true,
+                message: 'Contraseña actualizada exitosamente',
+                data: {
+                    paciente_id: id,
+                    paciente_nombre: paciente.apellido_nombre,
+                    usuario: paciente.usuario
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error reseteando contraseña:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+
+    // Limpiar usuarios temporales y permitir crear cuenta real
+    static async limpiarUsuarioTemporal(req, res) {
+        try {
+            const { id } = req.params;
+            
+            if (!id || isNaN(id)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de paciente inválido'
+                });
+            }
+            
+            // Verificar que el paciente existe
+            const paciente = await Usuario.findById(id);
+            if (!paciente) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Paciente no encontrado'
+                });
+            }
+            
+            // Verificar si tiene usuario temporal
+            const esUsuarioTemporal = paciente.usuario && (
+                paciente.usuario.startsWith('temp_') || 
+                paciente.contrasena && paciente.contrasena.startsWith('temp_password_')
+            );
+            
+            if (!esUsuarioTemporal) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'El paciente no tiene usuario temporal'
+                });
+            }
+            
+            // Limpiar usuario y contraseña temporal
+            const query = 'UPDATE usuarios SET usuario = NULL, contrasena = NULL WHERE id = ?';
+            await Usuario.executeQuery(query, [id]);
+            
+            res.json({
+                success: true,
+                message: 'Usuario temporal limpiado exitosamente. Ahora puedes crear una cuenta real.',
+                data: {
+                    paciente_id: id,
+                    paciente_nombre: paciente.apellido_nombre
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error limpiando usuario temporal:', error);
             res.status(500).json({
                 success: false,
                 message: 'Error interno del servidor',

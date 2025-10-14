@@ -165,6 +165,43 @@ class PlanAlimentacion {
             throw error;
         }
     }
+
+    // Obtener plan activo por paciente
+    async getPlanActivoByPaciente(pacienteId) {
+        try {
+            const query = `
+                SELECT pa.*, p.nombre as profesional_nombre
+                FROM ${this.tableName} pa
+                INNER JOIN profesionales p ON pa.profesional_id = p.id
+                WHERE pa.usuario_id = ? AND pa.activo = 1
+                ORDER BY pa.fecha_inicio DESC
+                LIMIT 1
+            `;
+            const result = await executeQuery(query, [pacienteId]);
+            return result[0] || null;
+        } catch (error) {
+            console.error('Error al obtener plan activo del paciente:', error);
+            throw error;
+        }
+    }
+
+    // Obtener todos los planes de un paciente
+    async getPlanesByPaciente(pacienteId) {
+        try {
+            const query = `
+                SELECT pa.*, p.nombre as profesional_nombre
+                FROM ${this.tableName} pa
+                INNER JOIN profesionales p ON pa.profesional_id = p.id
+                WHERE pa.usuario_id = ?
+                ORDER BY pa.creado_en DESC
+            `;
+            const result = await executeQuery(query, [pacienteId]);
+            return result;
+        } catch (error) {
+            console.error('Error al obtener planes del paciente:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = PlanAlimentacion;

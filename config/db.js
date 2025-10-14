@@ -637,7 +637,7 @@ const executeQuery = async (query, params = []) => {
         if (!pool) {
             await initializeDatabase();
         }
-        const [results] = await pool.execute(query, params);
+        const [results] = await pool.query(query, params);
         return results;
     } catch (error) {
         console.error('Error ejecutando consulta:', error.message);

@@ -85,7 +85,20 @@ const authenticateProfessional = async (usuario, password) => {
 // Función para autenticar paciente
 const authenticatePatient = async (usuario, password) => {
     try {
-        const paciente = await Usuario.findByUsuario(usuario);
+        // Buscar paciente por usuario, email o número de documento
+        let paciente = await Usuario.findByUsuario(usuario);
+        
+        // Si no se encuentra por usuario, intentar por email
+        if (!paciente) {
+            paciente = await Usuario.findByEmail(usuario);
+        }
+        
+        // Si aún no se encuentra, intentar por número de documento
+        if (!paciente) {
+            const query = 'SELECT * FROM usuarios WHERE numero_documento = ? AND rol = "paciente"';
+            const results = await Usuario.executeQuery(query, [usuario]);
+            paciente = results.length > 0 ? new Usuario(results[0]) : null;
+        }
         
         if (!paciente) {
             return {
@@ -118,7 +131,9 @@ const authenticatePatient = async (usuario, password) => {
                 nombre: paciente.apellido_nombre,
                 email: paciente.email,
                 rol: 'paciente',
-                profesional_id: paciente.profesional_id
+                profesional_id: paciente.profesional_id,
+                numero_documento: paciente.numero_documento,
+                telefono: paciente.telefono
             }
         };
     } catch (error) {

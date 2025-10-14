@@ -14,12 +14,12 @@ class AuthController {
                 });
             }
 
-            // Validar formato de usuario
-            const usuarioRegex = /^[a-zA-Z0-9_]{3,20}$/;
+            // Validar formato de usuario - más flexible para pacientes
+            const usuarioRegex = /^[a-zA-Z0-9_@.-]{3,50}$/;
             if (!usuarioRegex.test(usuario)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'El usuario debe tener entre 3 y 20 caracteres (solo letras, números y guiones bajos)'
+                    message: 'El nombre de usuario debe tener entre 3 y 50 caracteres (letras, números, guiones bajos, @, . y -)'
                 });
             }
 

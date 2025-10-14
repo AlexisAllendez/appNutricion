@@ -92,6 +92,13 @@ class AntropometriaController {
     async getAntropometriaByUsuario(req, res) {
         try {
             const { usuarioId } = req.params;
+            
+            console.log('🔍 Debug Controller - usuarioId recibido:', {
+                usuarioId: usuarioId,
+                type: typeof usuarioId,
+                isNaN: isNaN(usuarioId)
+            });
+            
             const mediciones = await this.antropometriaModel.getByUsuario(usuarioId);
 
             res.json({

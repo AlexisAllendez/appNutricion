@@ -359,36 +359,8 @@ CREATE TABLE IF NOT EXISTS recipe_ingredientes (
     UNIQUE KEY unq_receta_ingrediente (receta_id, ingrediente_id)
 );
 
-------------------------------------------------
--- Insertar algunos ingredientes básicos
-------------------------------------------------
-INSERT IGNORE INTO ingredientes (nombre, categoria, calorias_por_100g, proteinas_por_100g, carbohidratos_por_100g, grasas_por_100g, fibra_por_100g, azucares_por_100g, sodio_por_100g) VALUES
-('Pollo','carnes',165,31,0,3.6,0,0,74),
-('Salmón','carnes',208,25,0,12,0,0,59),
-('Huevo','otros',155,13,1.1,11,0,1.1,124),
-('Avena','cereales',389,17,66,7,11,1,12),
-('Plátano','frutas',89,1.1,23,0.3,2.6,12,1),
-('Manzana','frutas',52,0.3,14,0.2,2.4,10,1),
-('Brócoli','vegetales',34,2.8,7,0.4,2.6,1.5,33),
-('Espinacas','vegetales',23,2.9,3.6,0.4,2.2,0.4,79),
-('Arroz integral','cereales',111,2.6,23,0.9,1.8,0.4,5),
-('Quinoa','cereales',120,4.4,22,1.9,2.8,0.9,7),
-('Leche descremada','lacteos',34,3.4,5,0.2,0,5,42),
-('Yogur griego natural','lacteos',59,10,3.6,0.4,0,3.6,36),
-('Almendras','frutos_secos',579,21,22,50,12,4.4,1),
-('Palta','frutas',160,2,9,15,7,0.7,7),
-('Tomate','vegetales',18,0.9,3.9,0.2,1.2,2.6,5),
-('Cebolla','vegetales',40,1.1,9,0.1,1.7,4.2,4),
-('Ajo','vegetales',149,6.4,33,0.5,2.1,1,17),
-('Aceite de oliva','aceites',883,0,0,100,0,0,2);
 
-------------------------------------------------
--- Insertar algunas recetas básicas
-------------------------------------------------
-INSERT IGNORE INTO recetas (nombre, categoria, porciones, calorias_total, proteinas_total, carbohidratos_total, grasas_total, tiempo_preparacion, dificultad, ingredientes, preparacion, activo) VALUES
-('Omelette de espinacas', 'desayuno', 1, 185, 16, 3, 12, 15, 'facil', '2 huevos, 30g espinacas frescas, sal, pimienta', '1. Calentar sartén antiadherente\n2. Batir huevos con sal y pimienta\n3. Añadir espinacas troceadas\n4. Cocinar a fuego medio hasta cuajar\n5. Doblar y servir caliente', TRUE),
-('Pechuga de pollo a la plancha', 'almuerzo', 1, 165, 31, 0, 3.6, 20, 'facil', '150g pechuga de pollo, sal, pimienta, especias', '1. Condimentar pollo con sal, pimienta y especias\n2. Calentar plancha a fuego alto\n3. Cocinar pollo 6-8 min por lado\n4. Reposar 5 min antes de servir', TRUE),
-('Ensalada mixta', 'almuerzo', 1, 120, 5, 15, 4, 10, 'facil', 'Mix de lechugas, tomate, pepino, 30g queso fresco, vinagreta', '1. Lavar y cortar verduras\n2. Mezclar lechugas con tomate y pepino\n3. Aderezar con vinagreta ligera\n4. Coronar con queso fresco', TRUE);
+
 
 ------------------------------------------------
 -- 17. Laboratorios

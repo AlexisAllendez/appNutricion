@@ -43,6 +43,7 @@ function initPatientHistory() {
     checkForNutritionRedirect();
     
     loadPatientData();
+    loadProfessionalName();
     initTabs();
     setupEventListeners();
     initCharts();
@@ -309,6 +310,21 @@ async function getProfesionalData() {
     } catch (error) {
         console.warn('❌ Error obteniendo datos del profesional:', error);
         return null;
+    }
+}
+
+// Load professional name in the navbar
+async function loadProfessionalName() {
+    try {
+        const profesional = await getProfesionalData();
+        if (profesional) {
+            const professionalNameElement = document.getElementById('professionalName');
+            if (professionalNameElement) {
+                professionalNameElement.textContent = profesional.nombre || 'Dr. Profesional';
+            }
+        }
+    } catch (error) {
+        console.warn('Error loading professional name:', error);
     }
 }
 
@@ -3324,6 +3340,15 @@ function setupEventListeners() {
         });
     }
     
+    // Professional dropdown menu
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logout();
+        });
+    }
+    
     // Tab navigation
     const tabLinks = document.querySelectorAll('.nav-link[data-bs-toggle="tab"]');
     tabLinks.forEach(link => {
@@ -3923,6 +3948,22 @@ function viewPlan(planId) {
 
 function goBack() {
     window.location.href = '/dashboard/professional/?tab=pacientes';
+}
+
+function logout() {
+    // Clear all stored data
+    localStorage.removeItem('token');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('professionalData');
+    sessionStorage.clear();
+    
+    // Show logout message
+    showAlert('Cerrando sesión...', 'info');
+    
+    // Redirect to login
+    setTimeout(() => {
+        window.location.href = '/login';
+    }, 1000);
 }
 
 function showAlert(message, type = 'info') {

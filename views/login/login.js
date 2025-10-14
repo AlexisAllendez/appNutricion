@@ -8,15 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize login page
 function initLoginPage() {
-    // Detect user type from URL parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const userType = urlParams.get('type');
-    
-    // Configure page based on user type
-    if (userType) {
-        configureForUserType(userType);
-    }
-    
     // Add animation to login card
     const loginCard = document.querySelector('.login-card');
     loginCard.style.opacity = '0';
@@ -36,42 +27,6 @@ function initLoginPage() {
     document.getElementById('loginButton').disabled = false;
 }
 
-// Configure page for specific user type
-function configureForUserType(userType) {
-    const logoIcon = document.querySelector('.logo-icon');
-    const logoText = document.querySelector('.logo-text');
-    const loginSubtitle = document.querySelector('.login-subtitle');
-    const usernameLabel = document.querySelector('label[for="username"]');
-    const usernameInput = document.getElementById('username');
-    
-    if (userType === 'paciente') {
-        // Configure for patient
-        logoIcon.className = 'fas fa-user logo-icon';
-        logoText.textContent = 'Portal Pacientes';
-        loginSubtitle.textContent = 'Acceso para Pacientes';
-        usernameLabel.textContent = 'Email o Documento';
-        usernameInput.placeholder = 'Ingresa tu email o número de documento';
-        
-        // Add patient-specific styling
-        document.body.classList.add('patient-login');
-        
-    } else if (userType === 'profesional') {
-        // Configure for professional
-        logoIcon.className = 'fas fa-user-md logo-icon';
-        logoText.textContent = 'Portal Profesional';
-        loginSubtitle.textContent = 'Acceso para Profesionales';
-        usernameLabel.textContent = 'Email Profesional';
-        usernameInput.placeholder = 'Ingresa tu email profesional';
-        
-        // Add professional-specific styling
-        document.body.classList.add('professional-login');
-    }
-    
-    // Store user type for later use
-    window.currentUserType = userType;
-}
-
-
 // Handle login form submission
 async function handleLogin(event) {
     event.preventDefault();
@@ -85,10 +40,10 @@ async function handleLogin(event) {
         return;
     }
     
-    // Username validation (alphanumeric, 3-20 characters)
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    // Username validation - más flexible para pacientes
+    const usernameRegex = /^[a-zA-Z0-9_@.-]{3,50}$/;
     if (!usernameRegex.test(username)) {
-        showAlert('El usuario debe tener entre 3 y 20 caracteres (solo letras, números y guiones bajos)', 'warning');
+        showAlert('El nombre de usuario debe tener entre 3 y 50 caracteres (letras, números, guiones bajos, @, . y -)', 'warning');
         return;
     }
     
@@ -99,7 +54,7 @@ async function handleLogin(event) {
     
     try {
         // Show processing message
-        showAlert('Iniciando sesión...', 'info');
+        showAlert('Verificando credenciales...', 'info');
         
         // Make API call to login
         const response = await fetch('/api/auth/login', {
@@ -125,9 +80,9 @@ async function handleLogin(event) {
             // Redirect based on user role
             setTimeout(() => {
                 if (result.data.user.rol === 'profesional') {
-                    window.location.href = '/dashboard/professional/index.html';
+                    window.location.href = '/dashboard/professional';
                 } else if (result.data.user.rol === 'paciente') {
-                    window.location.href = '/dashboard/patient/index.html';
+                    window.location.href = '/dashboard/patient';
                 } else {
                     showAlert('Rol de usuario no reconocido', 'error');
                 }

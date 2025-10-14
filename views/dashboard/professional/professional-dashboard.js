@@ -509,6 +509,7 @@ async function loadPacientesContent() {
                             <th>Última Consulta</th>
                                 <th>Peso Actual</th>
                             <th>Estado</th>
+                            <th>Cuenta</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -541,6 +542,28 @@ async function loadPacientesContent() {
                                     </td>
                                     <td>
                                         <span class="badge ${paciente.activo ? 'bg-success' : 'bg-danger'}">${paciente.activo ? 'Activo' : 'Inactivo'}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex align-items-center mb-1">
+                                                <span class="badge ${paciente.tiene_cuenta ? 'bg-success' : 'bg-warning'} me-2">
+                                                    <i class="fas fa-${paciente.tiene_cuenta ? 'check-circle' : 'exclamation-triangle'} me-1"></i>
+                                                    ${paciente.tiene_cuenta ? 'SÍ' : 'NO'}
+                                                </span>
+                                                <button class="btn btn-sm btn-outline-info" onclick="showPatientAccountInfo(${paciente.id})" title="Ver información de cuenta">
+                                                    <i class="fas fa-user-circle"></i>
+                                                </button>
+                                            </div>
+                                            ${paciente.tiene_cuenta ? `
+                                                <small class="text-muted">
+                                                    <i class="fas fa-user me-1"></i>Usuario: <strong>${paciente.usuario || 'No especificado'}</strong>
+                                                </small>
+                                            ` : `
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>Sin acceso al sistema
+                                                </small>
+                                            `}
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -4216,6 +4239,492 @@ async function guardarNuevaConsulta() {
     } catch (error) {
         console.error('Error al guardar consulta:', error);
         showAlert('Error al guardar la consulta', 'danger');
+    }
+}
+
+// Función para mostrar información de cuenta del paciente
+function showPatientAccountInfo(patientId) {
+    // Buscar el paciente en la lista actual
+    const patient = pacientesData.find(p => p.id === patientId);
+    
+    if (!patient) {
+        showAlert('Paciente no encontrado', 'error');
+        return;
+    }
+    
+    const accountStatus = patient.tiene_cuenta ? 'SÍ' : 'NO';
+    const statusColor = patient.tiene_cuenta ? 'success' : 'warning';
+    const statusIcon = patient.tiene_cuenta ? 'check-circle' : 'exclamation-triangle';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user me-2"></i>Información de Cuenta - ${patient.apellido_nombre}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label fw-bold">Estado de Cuenta:</label>
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-${statusColor} me-2">
+                                        <i class="fas fa-${statusIcon} me-1"></i>${accountStatus}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item mb-3">
+                                <label class="form-label fw-bold">Email:</label>
+                                <p class="mb-0">${patient.email || 'No especificado'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="info-item mb-3">
+                                <label class="form-label fw-bold">Usuario:</label>
+                                <p class="mb-0">
+                                    ${patient.tiene_cuenta ? `
+                                        <span class="badge bg-primary fs-6">
+                                            <i class="fas fa-user me-1"></i>${patient.usuario || 'No especificado'}
+                                        </span>
+                                    ` : `
+                                        <span class="text-muted">Sin cuenta de usuario</span>
+                                    `}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="info-item">
+                                <label class="form-label fw-bold">Funcionalidades Disponibles:</label>
+                                <div class="mt-2">
+                                    ${patient.tiene_cuenta ? `
+                                        <div class="d-flex flex-wrap gap-2">
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-utensils me-1"></i>Ver Recetas
+                                            </span>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-chart-line me-1"></i>Ver Evoluciones
+                                            </span>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-weight me-1"></i>Ver Peso
+                                            </span>
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-comments me-1"></i>Enviar Mensajes
+                                            </span>
+                                        </div>
+                                    ` : `
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            El paciente no tiene cuenta de usuario. Solo puede ser gestionado desde este panel profesional.
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${patient.tiene_cuenta ? `
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6 class="alert-heading">
+                                        <i class="fas fa-key me-2"></i>Credenciales de Acceso
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Usuario:</strong> <code>${patient.usuario}</code>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Para ingresar:</strong> El paciente debe usar este usuario y su contraseña
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        El paciente puede acceder al sistema desde la página de login seleccionando "Paciente" como tipo de usuario.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer">
+                    ${!patient.tiene_cuenta ? `
+                        <button type="button" class="btn btn-primary" onclick="createAccountForPatient(${patientId})">
+                            <i class="fas fa-user-plus me-2"></i>Crear Cuenta
+                        </button>
+                    ` : `
+                        <button type="button" class="btn btn-warning" onclick="resetPatientPassword(${patientId})">
+                            <i class="fas fa-key me-2"></i>Resetear Contraseña
+                        </button>
+                    `}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Limpiar modal cuando se cierre
+    modal.addEventListener('hidden.bs.modal', function() {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// Función para crear cuenta para paciente existente
+async function createAccountForPatient(patientId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i>Crear Cuenta de Usuario
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createAccountForm">
+                        <div class="mb-3">
+                            <label for="newUsername" class="form-label">Nombre de Usuario *</label>
+                            <input type="text" class="form-control" id="newUsername" required>
+                            <div class="form-text">El paciente usará este nombre para iniciar sesión</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">Contraseña *</label>
+                            <input type="password" class="form-control" id="newPassword" required minlength="6">
+                            <div class="form-text">Mínimo 6 caracteres</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirmar Contraseña *</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="submitCreateAccount(${patientId})">
+                        <i class="fas fa-save me-2"></i>Crear Cuenta
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Limpiar modal cuando se cierre
+    modal.addEventListener('hidden.bs.modal', function() {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// Función para resetear contraseña de paciente
+async function resetPatientPassword(patientId) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-key me-2"></i>Resetear Contraseña
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Importante:</strong> Esta acción cambiará la contraseña del paciente. 
+                        Asegúrate de comunicarle la nueva contraseña de forma segura.
+                    </div>
+                    
+                    <form id="resetPasswordForm">
+                        <div class="mb-3">
+                            <label for="newPasswordReset" class="form-label">Nueva Contraseña *</label>
+                            <input type="password" class="form-control" id="newPasswordReset" required minlength="6">
+                            <div class="form-text">Mínimo 6 caracteres</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPasswordReset" class="form-label">Confirmar Nueva Contraseña *</label>
+                            <input type="password" class="form-control" id="confirmPasswordReset" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showPasswordReset">
+                                <label class="form-check-label" for="showPasswordReset">
+                                    Mostrar contraseñas
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-warning" onclick="submitResetPassword(${patientId})">
+                        <i class="fas fa-key me-2"></i>Resetear Contraseña
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Configurar mostrar/ocultar contraseñas
+    const showPasswordCheckbox = document.getElementById('showPasswordReset');
+    const newPasswordInput = document.getElementById('newPasswordReset');
+    const confirmPasswordInput = document.getElementById('confirmPasswordReset');
+    
+    showPasswordCheckbox.addEventListener('change', function() {
+        const type = this.checked ? 'text' : 'password';
+        newPasswordInput.type = type;
+        confirmPasswordInput.type = type;
+    });
+    
+    // Limpiar modal cuando se cierre
+    modal.addEventListener('hidden.bs.modal', function() {
+        if (document.body.contains(modal)) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+// Función para enviar el reseteo de contraseña
+async function submitResetPassword(patientId) {
+    const newPassword = document.getElementById('newPasswordReset').value;
+    const confirmPassword = document.getElementById('confirmPasswordReset').value;
+    
+    // Validaciones
+    if (!newPassword || !confirmPassword) {
+        showAlert('Todos los campos son obligatorios', 'error');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showAlert('Las contraseñas no coinciden', 'error');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showAlert('La contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+    
+    // Confirmación adicional
+    if (!confirm('¿Está seguro de que desea resetear la contraseña del paciente? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/usuarios/paciente/${patientId}/resetear-contrasena`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                nueva_contrasena: newPassword
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Contraseña reseteada exitosamente', 'success');
+            
+            // Mostrar información de la nueva contraseña
+            const infoModal = document.createElement('div');
+            infoModal.className = 'modal fade';
+            infoModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-check-circle me-2"></i>Contraseña Actualizada
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-success">
+                                <h6 class="alert-heading">¡Contraseña actualizada exitosamente!</h6>
+                                <p class="mb-0">La contraseña del paciente <strong>${result.data.paciente_nombre}</strong> ha sido actualizada.</p>
+                            </div>
+                            
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>Información para el Paciente
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Usuario:</strong> <code>${result.data.usuario}</code>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Nueva Contraseña:</strong> <code>${newPassword}</code>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <small class="text-muted">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        <strong>Importante:</strong> Comunica estas credenciales al paciente de forma segura. 
+                                        Recomienda que cambie la contraseña en su primera sesión.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+                                <i class="fas fa-check me-2"></i>Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(infoModal);
+            const bsInfoModal = new bootstrap.Modal(infoModal);
+            bsInfoModal.show();
+            
+            // Cerrar modal de reseteo
+            const resetModal = document.querySelector('.modal.show');
+            if (resetModal) {
+                const bsResetModal = bootstrap.Modal.getInstance(resetModal);
+                bsResetModal.hide();
+            }
+            
+            // Limpiar modal de información cuando se cierre
+            infoModal.addEventListener('hidden.bs.modal', function() {
+                if (document.body.contains(infoModal)) {
+                    document.body.removeChild(infoModal);
+                }
+            });
+            
+        } else {
+            showAlert(result.message || 'Error reseteando contraseña', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error reseteando contraseña:', error);
+        showAlert('Error de conexión', 'error');
+    }
+}
+
+// Función para limpiar usuario temporal
+async function limpiarUsuarioTemporal(patientId) {
+    if (!confirm('¿Está seguro de que desea limpiar el usuario temporal? El paciente seguirá funcionando normalmente pero aparecerá como "sin cuenta".')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/usuarios/paciente/${patientId}/limpiar-temporal`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Usuario temporal limpiado exitosamente', 'success');
+            // Recargar lista de pacientes
+            loadPacientesContent();
+        } else {
+            showAlert(result.message || 'Error limpiando usuario temporal', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error limpiando usuario temporal:', error);
+        showAlert('Error de conexión', 'error');
+    }
+}
+
+// Función para enviar la creación de cuenta
+async function submitCreateAccount(patientId) {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    // Validaciones
+    if (!username || !password || !confirmPassword) {
+        showAlert('Todos los campos son obligatorios', 'error');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showAlert('Las contraseñas no coinciden', 'error');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showAlert('La contraseña debe tener al menos 6 caracteres', 'error');
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/usuarios/paciente/${patientId}/crear-cuenta`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usuario: username,
+                contrasena: password
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Cuenta creada exitosamente', 'success');
+            // Cerrar modal
+            const modal = document.querySelector('.modal.show');
+            if (modal) {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                bsModal.hide();
+            }
+            // Recargar lista de pacientes
+            loadPacientesContent();
+        } else {
+            showAlert(result.message || 'Error creando cuenta', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error creando cuenta:', error);
+        showAlert('Error de conexión', 'error');
     }
 }
 

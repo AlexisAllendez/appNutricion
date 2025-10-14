@@ -1,4 +1,4 @@
-const { getConnection } = require('../config/db');
+const { executeQuery } = require('../config/db');
 
 class Antropometria {
     constructor() {
@@ -45,21 +45,58 @@ class Antropometria {
         }
     }
 
-    async getByUsuario(usuarioId) {
-        const connection = await getConnection();
+    async getByUsuario(usuarioId, options = {}) {
         try {
-            const [rows] = await connection.execute(
+            // Validar que usuarioId sea un número válido
+            if (!usuarioId || isNaN(usuarioId)) {
+                throw new Error('usuarioId debe ser un número válido');
+            }
+            
+            const { limit = 20, offset = 0 } = options;
+            
+            // Asegurar que limit y offset sean números enteros
+            const limitInt = parseInt(limit, 10);
+            const offsetInt = parseInt(offset, 10);
+            
+            // Validar que los números sean válidos
+            if (isNaN(limitInt) || isNaN(offsetInt)) {
+                throw new Error('limit y offset deben ser números válidos');
+            }
+            
+            console.log('🔍 Debug Antropometria - Parámetros:', {
+                usuarioId: usuarioId,
+                limitInt: limitInt,
+                offsetInt: offsetInt,
+                usuarioIdType: typeof usuarioId
+            });
+            
+            const rows = await executeQuery(
                 `SELECT * FROM ${this.table} 
                 WHERE usuario_id = ? 
-                ORDER BY fecha DESC, creado_en DESC`,
-                [usuarioId]
+                ORDER BY fecha DESC, creado_en DESC
+                LIMIT ? OFFSET ?`,
+                [parseInt(usuarioId, 10), limitInt, offsetInt]
             );
             return rows;
         } catch (error) {
             console.error('Error fetching anthropometry by user:', error);
             throw error;
-        } finally {
-            if (connection) connection.release();
+        }
+    }
+
+    async getUltimaMedicion(usuarioId) {
+        try {
+            const rows = await executeQuery(
+                `SELECT * FROM ${this.table} 
+                WHERE usuario_id = ? 
+                ORDER BY fecha DESC, creado_en DESC
+                LIMIT 1`,
+                [usuarioId]
+            );
+            return rows[0] || null;
+        } catch (error) {
+            console.error('Error fetching last anthropometry measurement:', error);
+            throw error;
         }
     }
 

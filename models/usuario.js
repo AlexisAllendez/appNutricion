@@ -239,11 +239,10 @@ class Usuario {
             
             if (!result) return false;
             
-            // Un paciente tiene cuenta válida si:
-            // 1. Tiene usuario (no es temporal)
-            // 2. Tiene contraseña (no es temporal)
-            const hasValidUser = result.usuario && !result.usuario.startsWith('temp_');
-            const hasValidPassword = result.contrasena && !result.contrasena.startsWith('temp_password_');
+            // Un paciente tiene cuenta válida si tiene usuario y contraseña
+            // (no son null/undefined y no están vacíos) Y no son temporales
+            const hasValidUser = result.usuario && result.usuario.trim() !== '' && !result.usuario.startsWith('temp_');
+            const hasValidPassword = result.contrasena && result.contrasena.trim() !== '' && !result.contrasena.startsWith('temp_password_');
             
             return hasValidUser && hasValidPassword;
         } catch (error) {

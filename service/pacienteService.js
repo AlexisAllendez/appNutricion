@@ -28,7 +28,12 @@ class PacienteService {
             SELECT u.*, 
                    COUNT(c.id) as total_consultas,
                    MAX(c.fecha) as ultima_consulta,
-                   (SELECT peso FROM antropometria WHERE usuario_id = u.id ORDER BY fecha DESC LIMIT 1) as peso_actual
+                   (SELECT peso FROM antropometria WHERE usuario_id = u.id ORDER BY fecha DESC LIMIT 1) as peso_actual,
+                   CASE 
+                       WHEN u.usuario IS NOT NULL AND u.usuario != '' AND u.contrasena IS NOT NULL AND u.contrasena != '' 
+                       AND u.usuario NOT LIKE 'temp_%' AND u.contrasena NOT LIKE 'temp_password_%'
+                       THEN 1 ELSE 0 
+                   END as tiene_cuenta
             FROM usuarios u
             LEFT JOIN consultas c ON u.id = c.usuario_id
             WHERE u.profesional_id = ?
@@ -103,7 +108,9 @@ class PacienteService {
                 ultima_consulta: p.ultima_consulta,
                 total_consultas: p.total_consultas,
                 peso_actual: p.peso_actual,
-                creado_en: p.creado_en
+                creado_en: p.creado_en,
+                tiene_cuenta: p.tiene_cuenta === 1,
+                usuario: p.usuario
             })),
             stats: stats,
             count: pacientes.length,
@@ -134,7 +141,9 @@ class PacienteService {
             SELECT 
                 COUNT(*) as total_pacientes,
                 COUNT(CASE WHEN activo = 1 THEN 1 END) as pacientes_activos,
-                COUNT(CASE WHEN activo = 0 THEN 1 END) as pacientes_inactivos
+                COUNT(CASE WHEN activo = 0 THEN 1 END) as pacientes_inactivos,
+                COUNT(CASE WHEN usuario IS NOT NULL AND usuario != '' AND contrasena IS NOT NULL AND contrasena != '' AND usuario NOT LIKE 'temp_%' AND contrasena NOT LIKE 'temp_password_%' THEN 1 END) as pacientes_con_cuenta,
+                COUNT(CASE WHEN usuario IS NULL OR usuario = '' OR contrasena IS NULL OR contrasena = '' OR usuario LIKE 'temp_%' OR contrasena LIKE 'temp_password_%' THEN 1 END) as pacientes_sin_cuenta
             FROM usuarios 
             WHERE profesional_id = ? AND rol = 'paciente'
         `;
@@ -157,6 +166,8 @@ class PacienteService {
             total_pacientes: pacientesStats.total_pacientes || 0,
             pacientes_activos: pacientesStats.pacientes_activos || 0,
             pacientes_inactivos: pacientesStats.pacientes_inactivos || 0,
+            pacientes_con_cuenta: pacientesStats.pacientes_con_cuenta || 0,
+            pacientes_sin_cuenta: pacientesStats.pacientes_sin_cuenta || 0,
             consultas_pendientes: consultasStats.consultas_pendientes || 0,
             con_consultas: consultasStats.consultas_ultimo_mes || 0
         };

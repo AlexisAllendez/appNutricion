@@ -29,6 +29,12 @@ router.post('/paciente', UsuarioController.createPacienteDirect);
 // Ruta para crear cuenta de usuario para paciente existente
 router.post('/paciente/:id/crear-cuenta', UsuarioController.createAccountForPatient);
 
+// Ruta para resetear contraseña de paciente
+router.put('/paciente/:id/resetear-contrasena', UsuarioController.resetPatientPassword);
+
+// Ruta para limpiar usuario temporal
+router.delete('/paciente/:id/limpiar-temporal', UsuarioController.limpiarUsuarioTemporal);
+
 // Ruta de prueba
 router.get('/', (req, res) => {
     res.json({
