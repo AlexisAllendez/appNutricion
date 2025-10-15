@@ -489,6 +489,36 @@ class ProfesionalController {
             });
         }
     }
+
+    // Obtener perfil del profesional actual
+    static async getPerfil(req, res) {
+        try {
+            const profesionalId = req.user.id;
+            
+            const profesional = await Profesional.findById(profesionalId);
+            
+            if (!profesional) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Profesional no encontrado'
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Perfil obtenido exitosamente',
+                data: profesional.toPublicObject()
+            });
+
+        } catch (error) {
+            console.error('Error obteniendo perfil del profesional:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
 }
 
 module.exports = ProfesionalController;

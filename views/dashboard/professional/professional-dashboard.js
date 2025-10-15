@@ -298,8 +298,8 @@ function loadSectionContent(sectionName) {
         case 'planes':
             loadPlanesContent();
             break;
-        case 'mensajes':
-            loadMensajesContent();
+        case 'registro-comidas':
+            loadRegistroComidasContent();
             break;
     }
 }
@@ -2373,66 +2373,10 @@ function openPlanEditor(planId) {
 }
 
 // Load mensajes content
-function loadMensajesContent() {
-    const section = document.getElementById('mensajes-section');
-    section.querySelector('.card-body').innerHTML = `
-        <div class="mensajes-content">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>Conversaciones</h5>
-                    <div class="conversation-list">
-                        <div class="conversation-item active">
-                            <div class="conversation-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="conversation-content">
-                                <strong>María González</strong>
-                                <small class="text-muted d-block">¿Cómo está mi progreso?</small>
-                            </div>
-                            <div class="conversation-time">
-                                <small>10:30</small>
-                            </div>
-                        </div>
-                        <div class="conversation-item">
-                            <div class="conversation-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="conversation-content">
-                                <strong>Carlos Rodríguez</strong>
-                                <small class="text-muted d-block">Gracias por el plan</small>
-                            </div>
-                            <div class="conversation-time">
-                                <small>09:15</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-8">
-                    <div class="chat-area">
-                        <div class="chat-header">
-                            <strong>María González</strong>
-                        </div>
-                        <div class="chat-messages">
-                            <div class="message received">
-                                <p>Hola Doctor, ¿cómo está mi progreso?</p>
-                                <small class="text-muted">10:30</small>
-                            </div>
-                            <div class="message sent">
-                                <p>Hola María, tu progreso es excelente. Has perdido 2kg esta semana.</p>
-                                <small class="text-muted">10:32</small>
-                            </div>
-                        </div>
-                        <div class="chat-input">
-                            <div class="input-group">
-                                <input type="text" class="form-control" placeholder="Escribe tu mensaje...">
-                                <button class="btn btn-primary">Enviar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+function loadRegistroComidasContent() {
+    // La funcionalidad de registro de comidas se maneja en el archivo registro-comidas.js
+    // que se carga automáticamente cuando se muestra la sección
+    console.log('Registro de comidas content loaded');
 }
 
 // Setup event listeners
@@ -2484,12 +2428,12 @@ function setupEventListeners() {
         });
     }
     
-    // Mensajes button
-    const mensajesLink = document.getElementById('mensajesLink');
-    if (mensajesLink) {
-        mensajesLink.addEventListener('click', function(e) {
+    // Registro de Comidas button
+    const registroComidasLink = document.getElementById('registroComidasLink');
+    if (registroComidasLink) {
+        registroComidasLink.addEventListener('click', function(e) {
             e.preventDefault();
-            showSection('mensajes');
+            showSection('registro-comidas');
         });
     }
     

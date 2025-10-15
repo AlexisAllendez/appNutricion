@@ -106,9 +106,9 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#mensajes" id="mensajesLink">
-                                    <i class="fas fa-comments"></i>
-                                    <span>Mensajes</span>
+                                <a class="nav-link" href="#registro-comidas" id="registroComidasLink">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>Registro de Comidas</span>
                                 </a>
                             </li>
                         </ul>
@@ -443,15 +443,118 @@
                         </div>
                     </div>
 
-                    <!-- Mensajes Section -->
-                    <div id="mensajes-section" class="content-section">
+                    <!-- Registro de Comidas Section -->
+                    <div id="registro-comidas-section" class="content-section">
                         <div class="section-header">
-                            <h2 class="section-title">Mensajes</h2>
-                            <p class="section-subtitle">Comunicación con pacientes</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="section-title">Registro de Comidas</h2>
+                                    <p class="section-subtitle">Seguimiento de alimentación de pacientes</p>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-primary" id="verTodosRegistrosBtn">
+                                        <i class="fas fa-list me-2"></i>Ver Todos los Registros
+                                    </button>
+                                    <button class="btn btn-success" id="verEstadisticasBtn">
+                                        <i class="fas fa-chart-bar me-2"></i>Estadísticas
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card">
+
+                        <!-- Filtros -->
+                        <div class="card mb-4">
                             <div class="card-body">
-                                <p class="text-muted">Sistema de mensajería...</p>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label for="filtroPaciente" class="form-label">Paciente</label>
+                                        <select class="form-select" id="filtroPaciente">
+                                            <option value="">Todos los pacientes</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="filtroTipoComida" class="form-label">Tipo de Comida</label>
+                                        <select class="form-select" id="filtroTipoComida">
+                                            <option value="">Todos los tipos</option>
+                                            <option value="desayuno">Desayuno</option>
+                                            <option value="almuerzo">Almuerzo</option>
+                                            <option value="merienda">Merienda</option>
+                                            <option value="cena">Cena</option>
+                                            <option value="colacion">Colación</option>
+                                            <option value="otro">Otro</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="filtroFechaInicio" class="form-label">Fecha Inicio</label>
+                                        <input type="date" class="form-control" id="filtroFechaInicio">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label for="filtroFechaFin" class="form-label">Fecha Fin</label>
+                                        <input type="date" class="form-control" id="filtroFechaFin">
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button class="btn btn-outline-primary w-100" id="aplicarFiltrosBtn">
+                                            <i class="fas fa-filter me-1"></i>Filtrar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estadísticas rápidas -->
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
+                                        <h5 class="card-title">Registros Hoy</h5>
+                                        <span class="badge bg-primary fs-4" id="registrosHoyDash">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <i class="fas fa-users fa-2x text-success mb-2"></i>
+                                        <h5 class="card-title">Pacientes Activos</h5>
+                                        <span class="badge bg-success fs-4" id="pacientesActivosDash">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <i class="fas fa-camera fa-2x text-warning mb-2"></i>
+                                        <h5 class="card-title">Con Fotos</h5>
+                                        <span class="badge bg-warning fs-4" id="registrosConFotosDash">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <i class="fas fa-calendar-week fa-2x text-info mb-2"></i>
+                                        <h5 class="card-title">Esta Semana</h5>
+                                        <span class="badge bg-info fs-4" id="registrosSemanaDash">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista de registros -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-list me-2"></i>Registros de Comidas
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="registrosComidasContainer">
+                                    <div class="text-center p-4">
+                                        <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                                        <p class="text-muted mb-0">Cargando registros de comidas...</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -827,5 +930,6 @@
     <!-- Custom JS -->
     <script src="professional-dashboard.js?v=4"></script>
     <script src="home/home.js?v=1"></script>
+    <script src="registro-comidas.js?v=1"></script>
 </body>
 </html>

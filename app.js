@@ -21,6 +21,8 @@ const horarioRoutes = require('./routes/horarioRoutes');
 const historiaClinicaRoutes = require('./routes/historiaClinicaRoutes');
 const registrationKeyRoutes = require('./routes/registrationKeyRoutes');
 const editPatientRoutes = require('./routes/editPatientRoutes');
+
+// Importar scheduler de limpieza de imágenes
 const agendaRoutes = require('./routes/agendaRoutes');
 const evolucionMedicaRoutes = require('./routes/evolucionMedicaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
@@ -87,6 +89,7 @@ app.use('/api/antecedentes', require('./routes/antecedenteRoutes'));
 app.use('/api/evoluciones-medicas', evolucionMedicaRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/reservas', require('./routes/reservaRoutes'));
+app.use('/api/registro-comidas', require('./routes/registroComidasRoutes'));
 app.use('/api', registrationKeyRoutes);
 
 // Ruta de prueba de conexión

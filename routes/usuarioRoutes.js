@@ -35,6 +35,9 @@ router.put('/paciente/:id/resetear-contrasena', UsuarioController.resetPatientPa
 // Ruta para limpiar usuario temporal
 router.delete('/paciente/:id/limpiar-temporal', UsuarioController.limpiarUsuarioTemporal);
 
+// Ruta para que el paciente obtenga los datos de su profesional asignado
+router.get('/mi-profesional', UsuarioController.getMyProfesional);
+
 // Ruta de prueba
 router.get('/', (req, res) => {
     res.json({

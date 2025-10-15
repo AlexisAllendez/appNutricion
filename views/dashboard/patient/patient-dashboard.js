@@ -18,7 +18,7 @@ async function getProfessionalData() {
             return null;
         }
         
-        const response = await fetch('/api/profesionales/perfil', {
+        const response = await fetch('/api/usuarios/mi-profesional', {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -255,6 +255,9 @@ async function loadSection(sectionName) {
             case 'plan-alimentario':
                 html = await loadPlanAlimentarioSection();
             break;
+            case 'registro-comidas':
+                html = await loadRegistroComidasSection();
+            break;
             case 'perfil':
                 html = await loadPerfilSection();
             break;
@@ -264,6 +267,24 @@ async function loadSection(sectionName) {
         
         content.innerHTML = html;
         currentSection = sectionName;
+        
+        // Inicializar funcionalidad específica de la sección después de cargar el HTML
+        if (sectionName === 'registro-comidas') {
+            // Esperar un poco para que el DOM se actualice
+            setTimeout(() => {
+                if (typeof initRegistroComidas === 'function') {
+                    initRegistroComidas();
+                    console.log('✅ Registro de comidas inicializado');
+                } else {
+                    console.warn('⚠️ Función initRegistroComidas no encontrada');
+                }
+            }, 100);
+        } else {
+            // Limpiar otras secciones
+            if (typeof cleanupRegistroComidas === 'function') {
+                cleanupRegistroComidas();
+            }
+        }
         
         console.log(`✅ Sección ${sectionName} cargada`);
     } catch (error) {
@@ -683,6 +704,96 @@ async function loadPlanAlimentarioSection() {
         </div>
     `;
 }
+}
+
+// Load registro comidas section
+async function loadRegistroComidasSection() {
+    return `
+        <div class="fade-in">
+            <!-- Header responsive -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
+                <h3 class="mb-2 mb-md-0 fw-bold" style="font-size: 20px;">
+                    <i class="fas fa-clipboard-list me-2 text-primary"></i>
+                    Registro de Comidas
+                </h3>
+                <button class="btn btn-primary btn-sm shadow-sm w-100 w-md-auto" id="nuevoRegistroBtn" style="border-radius: 20px; padding: 8px 16px;">
+                    <i class="fas fa-plus me-1"></i>Nuevo Registro
+                </button>
+            </div>
+
+
+            <!-- Estadísticas rápidas - Responsive -->
+            <div class="row mb-3 g-2">
+                <div class="col-6 col-md-3">
+                    <div class="card text-center shadow-sm border-0" style="border-radius: 12px;">
+                        <div class="card-body p-2">
+                            <i class="fas fa-clipboard-list text-primary mb-1" style="font-size: 16px;"></i>
+                            <h6 class="card-title mb-1" style="font-size: 11px;">Total</h6>
+                            <span class="badge bg-primary bg-opacity-10 text-primary" id="totalRegistros" style="font-size: 12px;">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card text-center shadow-sm border-0" style="border-radius: 12px;">
+                        <div class="card-body p-2">
+                            <i class="fas fa-calendar-day text-success mb-1" style="font-size: 16px;"></i>
+                            <h6 class="card-title mb-1" style="font-size: 11px;">Hoy</h6>
+                            <span class="badge bg-success bg-opacity-10 text-success" id="registrosHoy" style="font-size: 12px;">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card text-center shadow-sm border-0" style="border-radius: 12px;">
+                        <div class="card-body p-2">
+                            <i class="fas fa-calendar-week text-warning mb-1" style="font-size: 16px;"></i>
+                            <h6 class="card-title mb-1" style="font-size: 11px;">Semana</h6>
+                            <span class="badge bg-warning bg-opacity-10 text-warning" id="registrosSemana" style="font-size: 12px;">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card text-center shadow-sm border-0" style="border-radius: 12px;">
+                        <div class="card-body p-2">
+                            <i class="fas fa-calendar-alt text-info mb-1" style="font-size: 16px;"></i>
+                            <h6 class="card-title mb-1" style="font-size: 11px;">Mes</h6>
+                            <span class="badge bg-info bg-opacity-10 text-info" id="registrosMes" style="font-size: 12px;">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Consejos compactos -->
+            <div class="alert alert-info alert-dismissible fade show mb-3" style="border-radius: 12px; border: none;">
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-lightbulb text-warning me-2 mt-1" style="font-size: 14px;"></i>
+                    <div>
+                        <strong style="font-size: 13px;">Consejos:</strong>
+                        <small class="d-block mt-1" style="font-size: 11px;">
+                            Registra inmediatamente después de comer • Incluye cantidades aproximadas • Sé específico en las descripciones
+                        </small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <!-- Lista de registros -->
+            <div class="card shadow-sm border-0" style="border-radius: 12px;">
+                <div class="card-header bg-light bg-opacity-50 border-0">
+                    <h6 class="card-title mb-0 fw-semibold" style="font-size: 15px;">
+                        <i class="fas fa-list me-2 text-primary"></i>Mis Registros de Comidas
+                    </h6>
+                </div>
+                <div class="card-body p-2 p-md-3">
+                    <div id="registrosComidasContainer">
+                        <div class="text-center p-3">
+                            <i class="fas fa-spinner fa-spin text-primary mb-2" style="font-size: 18px;"></i>
+                            <p class="text-muted mb-0" style="font-size: 13px;">Cargando registros de comidas...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // Load perfil section

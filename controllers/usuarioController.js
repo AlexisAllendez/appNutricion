@@ -615,6 +615,55 @@ class UsuarioController {
             });
         }
     }
+
+    // Obtener datos del profesional asignado al paciente
+    static async getMyProfesional(req, res) {
+        try {
+            const pacienteId = req.user.id;
+            
+            // Obtener los datos del paciente para acceder al profesional_id
+            const paciente = await Usuario.findById(pacienteId);
+            
+            if (!paciente) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Paciente no encontrado'
+                });
+            }
+
+            if (!paciente.profesional_id) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No tienes un profesional asignado'
+                });
+            }
+
+            // Obtener los datos del profesional
+            const Profesional = require('../models/profesional');
+            const profesional = await Profesional.findById(paciente.profesional_id);
+            
+            if (!profesional) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Profesional asignado no encontrado'
+                });
+            }
+
+            res.json({
+                success: true,
+                message: 'Datos del profesional obtenidos exitosamente',
+                data: profesional.toPublicObject()
+            });
+
+        } catch (error) {
+            console.error('Error obteniendo datos del profesional:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
 }
 
 module.exports = UsuarioController;
