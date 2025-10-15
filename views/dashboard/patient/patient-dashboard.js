@@ -279,6 +279,12 @@ async function loadSection(sectionName) {
                     console.warn('⚠️ Función initRegistroComidas no encontrada');
                 }
             }, 100);
+        } else if (sectionName === 'plan-alimentario') {
+            // Inicializar funcionalidad del plan alimentario
+            setTimeout(() => {
+                initPlanAlimentario();
+                console.log('✅ Plan alimentario inicializado');
+            }, 100);
         } else {
             // Limpiar otras secciones
             if (typeof cleanupRegistroComidas === 'function') {
@@ -629,70 +635,167 @@ async function loadPlanAlimentarioSection() {
         const result = await response.json();
         const plan = result.success ? result.data : null;
         
-        // Format date with professional's timezone
-        const fechaInicio = plan && plan.fecha_inicio ? await formatDateWithTimezone(plan.fecha_inicio) : 'No especificada';
-        
-        return `
-            <div class="fade-in">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 class="mb-0">
-                        <i class="fas fa-utensils me-2 text-primary"></i>
-                        Mi Plan Alimentario
-                    </h2>
-                </div>
-                
-                ${plan ? `
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-clipboard-list me-2"></i>
-                                ${plan.nombre || 'Plan Alimentario'}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6><i class="fas fa-info-circle me-2"></i>Información del Plan</h6>
-                                    <p><strong>Nombre:</strong> ${plan.nombre || 'No especificado'}</p>
-                                    <p><strong>Descripción:</strong> ${plan.descripcion || 'Sin descripción'}</p>
-                                    <p><strong>Fecha de Inicio:</strong> ${fechaInicio}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6><i class="fas fa-chart-pie me-2"></i>Objetivos</h6>
-                                    <p><strong>Calorías Diarias:</strong> ${plan.calorias_diarias || 'No especificadas'}</p>
-                                    <p><strong>Objetivo:</strong> ${plan.objetivo || 'No especificado'}</p>
+        if (!plan) {
+            return `
+                <div class="fade-in">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="mb-0">
+                            <i class="fas fa-utensils me-2 text-primary"></i>
+                            Mi Plan Alimentario
+                        </h2>
                     </div>
-                </div>
-                            
-                            ${plan.comidas && plan.comidas.length > 0 ? `
-                                <hr>
-                                <h6><i class="fas fa-utensils me-2"></i>Comidas del Plan</h6>
-                                <div class="row">
-                                    ${plan.comidas.map(comida => `
-                                        <div class="col-md-6 mb-3">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h6 class="mb-0">${comida.tipo_comida}</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <p class="mb-1"><strong>Alimentos:</strong> ${comida.alimentos || 'No especificados'}</p>
-                                                    <p class="mb-1"><strong>Cantidad:</strong> ${comida.cantidad || 'No especificada'}</p>
-                                                    <p class="mb-0"><strong>Horario:</strong> ${comida.horario || 'No especificado'}</p>
-                    </div>
-                </div>
-            </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                ` : `
+                    
                     <div class="empty-state">
                         <i class="fas fa-utensils"></i>
                         <h5>No hay plan alimentario asignado</h5>
                         <p>Tu profesional te asignará un plan alimentario personalizado.</p>
                     </div>
+                </div>
+            `;
+        }
+
+        // Format dates with professional's timezone
+        const fechaInicio = plan.fecha_inicio ? await formatDateWithTimezone(plan.fecha_inicio) : 'No especificada';
+        const fechaFin = plan.fecha_fin ? await formatDateWithTimezone(plan.fecha_fin) : 'Sin fecha límite';
+        const fechaAsignacion = plan.fecha_asignacion ? await formatDateWithTimezone(plan.fecha_asignacion) : 'No especificada';
+
+        // Organizar comidas por día de la semana
+        const comidasPorDia = {};
+        if (plan.comidas && plan.comidas.length > 0) {
+            plan.comidas.forEach(comida => {
+                if (!comidasPorDia[comida.dia_semana]) {
+                    comidasPorDia[comida.dia_semana] = [];
+                }
+                comidasPorDia[comida.dia_semana].push(comida);
+            });
+        }
+
+        // Orden de días de la semana
+        const ordenDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const ordenComidas = ['desayuno', 'media_manana', 'almuerzo', 'media_tarde', 'cena', 'colacion'];
+
+        return `
+            <div class="fade-in">
+                <!-- Header compacto -->
+                <div class="plan-header">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h2 class="mb-0">
+                            <i class="fas fa-utensils me-2 text-primary"></i>
+                            ${plan.plan_nombre || 'Mi Plan Alimentario'}
+                        </h2>
+                        <div class="plan-actions">
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="downloadPlanPDF()">
+                                <i class="fas fa-download"></i> PDF
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="printPlan()">
+                                <i class="fas fa-print"></i> Imprimir
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Resumen nutricional compacto -->
+                    ${plan.resumen_nutricional ? `
+                        <div class="nutrition-summary-compact">
+                            <div class="nutrition-item-compact">
+                                <i class="fas fa-fire text-danger"></i>
+                                <span class="value">${Math.round(plan.resumen_nutricional.calorias_promedio || 0)}</span>
+                                <span class="label">kcal</span>
+                            </div>
+                            <div class="nutrition-item-compact">
+                                <i class="fas fa-dumbbell text-primary"></i>
+                                <span class="value">${Math.round(plan.resumen_nutricional.proteinas_promedio || 0)}g</span>
+                                <span class="label">proteína</span>
+                            </div>
+                            <div class="nutrition-item-compact">
+                                <i class="fas fa-bread-slice text-warning"></i>
+                                <span class="value">${Math.round(plan.resumen_nutricional.carbohidratos_promedio || 0)}g</span>
+                                <span class="label">carbos</span>
+                            </div>
+                            <div class="nutrition-item-compact">
+                                <i class="fas fa-oil-can text-success"></i>
+                                <span class="value">${Math.round(plan.resumen_nutricional.grasas_promedio || 0)}g</span>
+                                <span class="label">grasas</span>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Plan semanal compacto -->
+                ${Object.keys(comidasPorDia).length > 0 ? `
+                    <div class="weekly-plan-compact">
+                        <div class="week-grid">
+                            ${ordenDias.map(dia => `
+                                <div class="day-card" data-day="${dia}">
+                                    <div class="day-header">
+                                        <h6 class="day-name">${dia.substring(0, 3)}</h6>
+                                        <span class="day-date">${getDayNumber(dia)}</span>
+                                    </div>
+                                    <div class="meals-container">
+                                        ${comidasPorDia[dia] ? comidasPorDia[dia]
+                                            .sort((a, b) => ordenComidas.indexOf(a.tipo_comida) - ordenComidas.indexOf(b.tipo_comida))
+                                            .map(comida => `
+                                                <div class="meal-item" data-meal="${comida.tipo_comida}">
+                                                    <div class="meal-time">${comida.hora || ''}</div>
+                                                    <div class="meal-icon">${getComidaIcon(comida.tipo_comida)}</div>
+                                                    <div class="meal-content">
+                                                        <div class="meal-name">${comida.nombre_comida}</div>
+                                                        <div class="meal-calories">${comida.calorias || 0} kcal</div>
+                                                    </div>
+                                                    <div class="meal-details" style="display: none;">
+                                                        <div class="meal-description">${comida.descripcion || ''}</div>
+                                                        <div class="meal-ingredients">${comida.ingredientes || ''}</div>
+                                                    </div>
+                                                </div>
+                                            `).join('') : '<div class="no-meals">Sin comidas</div>'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : `
+                    <div class="empty-plan">
+                        <i class="fas fa-utensils"></i>
+                        <h5>No hay comidas programadas</h5>
+                        <p>Tu profesional agregará las comidas específicas a tu plan.</p>
+                    </div>
                 `}
+
+                <!-- Información adicional colapsable -->
+                <div class="plan-info-collapsible">
+                    <button class="btn btn-link text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#planDetails">
+                        <i class="fas fa-info-circle me-2"></i>Ver detalles del plan
+                    </button>
+                    <div class="collapse" id="planDetails">
+                        <div class="card mt-2">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-info-circle me-2 text-primary"></i>Información</h6>
+                                        <p><strong>Tipo:</strong> ${plan.plan_tipo || 'No especificado'}</p>
+                                        <p><strong>Objetivo:</strong> ${plan.objetivo || 'No especificado'}</p>
+                                        <p><strong>Calorías Diarias:</strong> ${plan.calorias_diarias || 'No especificadas'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-calendar me-2 text-success"></i>Período</h6>
+                                        <p><strong>Inicio:</strong> ${fechaInicio}</p>
+                                        <p><strong>Fin:</strong> ${fechaFin}</p>
+                                        <p><strong>Asignado:</strong> ${fechaAsignacion}</p>
+                                    </div>
+                                </div>
+                                ${plan.descripcion ? `
+                                    <hr>
+                                    <h6><i class="fas fa-file-alt me-2 text-info"></i>Descripción</h6>
+                                    <p class="text-muted">${plan.descripcion}</p>
+                                ` : ''}
+                                ${plan.observaciones ? `
+                                    <hr>
+                                    <h6><i class="fas fa-sticky-note me-2 text-warning"></i>Observaciones</h6>
+                                    <p class="text-muted">${plan.observaciones}</p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     } catch (error) {
@@ -701,9 +804,171 @@ async function loadPlanAlimentarioSection() {
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 Error cargando el plan alimentario. Inténtalo de nuevo.
-        </div>
-    `;
+            </div>
+        `;
+    }
 }
+
+// Funciones auxiliares para el plan alimentario
+function getComidaIcon(tipoComida) {
+    const icons = {
+        'desayuno': 'fas fa-sun',
+        'media_manana': 'fas fa-apple-alt',
+        'almuerzo': 'fas fa-utensils',
+        'media_tarde': 'fas fa-coffee',
+        'cena': 'fas fa-moon',
+        'colacion': 'fas fa-seedling'
+    };
+    return icons[tipoComida] || 'fas fa-utensils';
+}
+
+function getComidaName(tipoComida) {
+    const names = {
+        'desayuno': 'Desayuno',
+        'media_manana': 'Media Mañana',
+        'almuerzo': 'Almuerzo',
+        'media_tarde': 'Media Tarde',
+        'cena': 'Cena',
+        'colacion': 'Colación'
+    };
+    return names[tipoComida] || tipoComida;
+}
+
+function getDayNumber(diaSemana) {
+    const hoy = new Date();
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const indiceHoy = hoy.getDay();
+    const indiceDia = diasSemana.indexOf(diaSemana);
+    
+    // Calcular la diferencia de días
+    const diferencia = indiceDia - indiceHoy;
+    const fechaObjetivo = new Date(hoy);
+    fechaObjetivo.setDate(hoy.getDate() + diferencia);
+    
+    return fechaObjetivo.getDate();
+}
+
+// Función para descargar PDF del plan
+async function downloadPlanPDF() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/pacientes/plan-alimentario/pdf', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `plan-alimentario-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('Plan alimentario descargado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error descargando PDF:', error);
+        showAlert('Error al descargar el plan alimentario', 'error');
+    }
+}
+
+// Función para imprimir el plan
+function printPlan() {
+    const printContent = document.querySelector('.fade-in');
+    if (!printContent) {
+        showAlert('No hay contenido para imprimir', 'warning');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Plan Alimentario</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+                <style>
+                    @media print {
+                        .btn, .btn-group { display: none !important; }
+                        .card { border: 1px solid #000 !important; }
+                        .bg-primary { background-color: #007bff !important; }
+                        .text-primary { color: #007bff !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                ${printContent.innerHTML}
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
+
+// Inicializar funcionalidad del plan alimentario
+function initPlanAlimentario() {
+    // Marcar el día actual
+    const today = new Date();
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const todayName = dayNames[today.getDay()];
+    
+    const todayCard = document.querySelector(`[data-day="${todayName}"]`);
+    if (todayCard) {
+        todayCard.classList.add('today');
+    }
+    
+    // Agregar funcionalidad de clic a las comidas
+    const mealItems = document.querySelectorAll('.meal-item');
+    mealItems.forEach(meal => {
+        meal.addEventListener('click', function() {
+            const details = this.querySelector('.meal-details');
+            if (details) {
+                const isVisible = details.style.display !== 'none';
+                details.style.display = isVisible ? 'none' : 'block';
+                
+                // Agregar indicador visual
+                if (!isVisible) {
+                    this.style.backgroundColor = '#f8f9fa';
+                    this.style.borderLeftWidth = '5px';
+                } else {
+                    this.style.backgroundColor = 'white';
+                    this.style.borderLeftWidth = '3px';
+                }
+            }
+        });
+        
+        // Agregar efecto hover mejorado
+        meal.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateX(3px)';
+        });
+        
+        meal.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0)';
+        });
+    });
+    
+    // Agregar animación de entrada a las tarjetas de día
+    const dayCards = document.querySelectorAll('.day-card');
+    dayCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    console.log('✅ Funcionalidad del plan alimentario inicializada');
 }
 
 // Load registro comidas section

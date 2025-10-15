@@ -22,6 +22,7 @@ router.get('/info', PacienteController.getPacienteInfo);
 router.get('/consultas', PacienteController.getConsultasPaciente);
 router.get('/mediciones', PacienteController.getMedicionesPaciente);
 router.get('/plan-alimentario', PacienteController.getPlanAlimentarioPaciente);
+router.get('/plan-alimentario/pdf', PacienteController.generatePlanPDF);
 router.put('/perfil', PacienteController.updatePerfilPaciente);
 router.put('/cambiar-contrasena', PacienteController.cambiarContrasena);
 

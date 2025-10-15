@@ -2,6 +2,8 @@ const Usuario = require('../models/usuario');
 const Consulta = require('../models/consulta');
 const Antropometria = require('../models/antropometria');
 const PlanAlimentacion = require('../models/planAlimentacion');
+const PlanAsignacion = require('../models/planAsignacion');
+const PlanComidas = require('../models/planComidas');
 
 class PacienteController {
     // Obtener información completa del paciente
@@ -26,9 +28,24 @@ class PacienteController {
             const antropometria = new Antropometria();
             const ultimaMedicion = await antropometria.getUltimaMedicion(pacienteId);
             
-            // Obtener plan alimentario activo
-            const planAlimentacion = new PlanAlimentacion();
-            const planActivo = await planAlimentacion.getPlanActivoByPaciente(pacienteId);
+            // Obtener plan alimentario activo usando sistema de asignaciones
+            const planAsignacion = new PlanAsignacion();
+            const asignacionActiva = await planAsignacion.getAsignacionActivaByUsuario(pacienteId);
+            
+            let planActivo = null;
+            if (asignacionActiva) {
+                // Obtener detalles completos del plan con comidas
+                const planComidas = new PlanComidas();
+                const comidas = await planComidas.getComidasByPlan(asignacionActiva.plan_id);
+                
+                planActivo = {
+                    ...asignacionActiva,
+                    comidas: comidas,
+                    fecha_asignacion: asignacionActiva.fecha_asignacion,
+                    fecha_inicio: asignacionActiva.fecha_inicio,
+                    fecha_fin: asignacionActiva.fecha_fin
+                };
+            }
             
             // Obtener estadísticas básicas
             const stats = await PacienteController.getPacienteStats(pacienteId);
@@ -109,10 +126,11 @@ class PacienteController {
         try {
             const pacienteId = req.user.id;
 
-            const planAlimentacion = new PlanAlimentacion();
-            const planActivo = await planAlimentacion.getPlanActivoByPaciente(pacienteId);
+            // Usar sistema de asignaciones para obtener plan activo
+            const planAsignacion = new PlanAsignacion();
+            const asignacionActiva = await planAsignacion.getAsignacionActivaByUsuario(pacienteId);
 
-            if (!planActivo) {
+            if (!asignacionActiva) {
                 return res.json({
                     success: true,
                     message: 'No hay plan alimentario activo',
@@ -120,10 +138,26 @@ class PacienteController {
                 });
             }
 
+            // Obtener detalles completos del plan con comidas
+            const planComidas = new PlanComidas();
+            const comidas = await planComidas.getComidasByPlan(asignacionActiva.plan_id);
+            
+            // Obtener resumen nutricional
+            const resumenNutricional = await planComidas.getNutritionalSummary(asignacionActiva.plan_id);
+
+            const planCompleto = {
+                ...asignacionActiva,
+                comidas: comidas,
+                resumen_nutricional: resumenNutricional,
+                fecha_asignacion: asignacionActiva.fecha_asignacion,
+                fecha_inicio: asignacionActiva.fecha_inicio,
+                fecha_fin: asignacionActiva.fecha_fin
+            };
+
             res.json({
                 success: true,
                 message: 'Plan alimentario obtenido exitosamente',
-                data: planActivo
+                data: planCompleto
             });
 
         } catch (error) {
@@ -286,6 +320,57 @@ class PacienteController {
 
         } catch (error) {
             console.error('Error cambiando contraseña del paciente:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+
+    // Generar PDF del plan alimentario
+    static async generatePlanPDF(req, res) {
+        try {
+            const pacienteId = req.user.id;
+
+            // Usar sistema de asignaciones para obtener plan activo
+            const planAsignacion = new PlanAsignacion();
+            const asignacionActiva = await planAsignacion.getAsignacionActivaByUsuario(pacienteId);
+
+            if (!asignacionActiva) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No hay plan alimentario activo para generar PDF'
+                });
+            }
+
+            // Obtener detalles completos del plan con comidas
+            const planComidas = new PlanComidas();
+            const comidas = await planComidas.getComidasByPlan(asignacionActiva.plan_id);
+            
+            // Obtener resumen nutricional
+            const resumenNutricional = await planComidas.getNutritionalSummary(asignacionActiva.plan_id);
+
+            // Obtener información del paciente
+            const paciente = await Usuario.findById(pacienteId);
+
+            const planCompleto = {
+                ...asignacionActiva,
+                comidas: comidas,
+                resumen_nutricional: resumenNutricional,
+                paciente: paciente.toPublicObject()
+            };
+
+            // Generar PDF usando el servicio PDF
+            const pdfService = require('../service/pdfService');
+            const pdfBuffer = await pdfService.generatePlanPDF(planCompleto);
+
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="plan-alimentario-${paciente.apellido_nombre || 'paciente'}-${new Date().toISOString().split('T')[0]}.pdf"`);
+            res.send(pdfBuffer);
+
+        } catch (error) {
+            console.error('Error generando PDF del plan alimentario:', error);
             res.status(500).json({
                 success: false,
                 message: 'Error interno del servidor',
