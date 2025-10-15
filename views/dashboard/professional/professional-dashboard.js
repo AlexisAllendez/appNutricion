@@ -576,9 +576,6 @@ async function loadPacientesContent() {
                                             <button class="btn btn-sm btn-outline-success" data-patient-id="${paciente.id}" data-action="new-consultation" title="Nueva Consulta">
                                                 <i class="fas fa-plus"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-outline-info" data-patient-id="${paciente.id}" data-action="send-message" title="Enviar Mensaje">
-                                                <i class="fas fa-comment"></i>
-                                            </button>
                                         </div>
                             </td>
                         </tr>
@@ -886,9 +883,6 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                                             <button class="btn btn-sm btn-outline-success" data-patient-id="${paciente.id}" data-action="new-consultation" title="Nueva Consulta">
                                                 <i class="fas fa-plus"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-outline-info" data-patient-id="${paciente.id}" data-action="send-message" title="Enviar Mensaje">
-                                                <i class="fas fa-comment"></i>
-                                            </button>
                                         </div>
                             </td>
                         </tr>
@@ -1013,10 +1007,6 @@ function setupPatientActionButtons() {
             case 'new-consultation':
                 console.log('🔍 Action: new-consultation for patient:', patientId);
                 newConsultation(patientId);
-                break;
-            case 'send-message':
-                console.log('🔍 Action: send-message for patient:', patientId);
-                sendMessage(patientId);
                 break;
             default:
                 console.log('🔍 Unknown action:', action);
@@ -1289,11 +1279,6 @@ function newConsultation(patientId) {
     mostrarModalNuevaConsultaParaPaciente(patientId, paciente);
 }
 
-function sendMessage(patientId) {
-    console.log('Sending message to patient ID:', patientId);
-    // TODO: Implement send message modal
-    alert('Función de enviar mensaje en desarrollo');
-}
 
 
 // Load agenda content
@@ -4037,7 +4022,7 @@ async function cargarPacientes() {
 async function cargarHorariosDisponibles(fecha) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/agenda/profesional/1/horarios-disponibles?fecha=${fecha}`, {
+        const response = await fetch(`/api/agenda/profesional/1/horarios-disponibles/${fecha}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -4263,9 +4248,6 @@ function showPatientAccountInfo(patientId) {
                                             </span>
                                             <span class="badge bg-success">
                                                 <i class="fas fa-weight me-1"></i>Ver Peso
-                                            </span>
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-comments me-1"></i>Enviar Mensajes
                                             </span>
                                         </div>
                                     ` : `
