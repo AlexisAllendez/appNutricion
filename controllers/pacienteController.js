@@ -178,17 +178,21 @@ class PacienteController {
             // Contar consultas
             const consultasQuery = 'SELECT COUNT(*) as total FROM consultas WHERE usuario_id = ?';
             const [consultasResult] = await Usuario.executeQuery(consultasQuery, [pacienteId]);
-            stats.totalConsultas = consultasResult.total;
+            stats.consultas_totales = consultasResult.total;
             
             // Contar mediciones
             const medicionesQuery = 'SELECT COUNT(*) as total FROM antropometria WHERE usuario_id = ?';
             const [medicionesResult] = await Usuario.executeQuery(medicionesQuery, [pacienteId]);
-            stats.totalMediciones = medicionesResult.total;
+            stats.mediciones_totales = medicionesResult.total;
             
-            // Contar planes alimentarios
-            const planesQuery = 'SELECT COUNT(*) as total FROM planes_alimentacion WHERE usuario_id = ?';
+            // Contar planes alimentarios activos (sin JOIN con planes_asignacion)
+            const planesQuery = `
+                SELECT COUNT(*) as total 
+                FROM planes_alimentacion 
+                WHERE usuario_id = ? AND activo = 1
+            `;
             const [planesResult] = await Usuario.executeQuery(planesQuery, [pacienteId]);
-            stats.totalPlanes = planesResult.total;
+            stats.planes_activos = planesResult.total;
             
             // Obtener próxima consulta
             const proximaConsultaQuery = `

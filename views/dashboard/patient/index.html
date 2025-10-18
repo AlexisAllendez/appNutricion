@@ -19,6 +19,11 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
         <div class="container-fluid">
+            <!-- Mobile Menu Button -->
+            <button class="btn btn-outline-light d-lg-none me-3" type="button" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            
             <a class="navbar-brand fw-bold" href="#">
                 <i class="fas fa-leaf me-2"></i>Sistema Nutricional
             </a>
@@ -49,14 +54,21 @@
         </div>
     </nav>
 
+    <!-- Mobile Sidebar Overlay -->
+    <div class="sidebar-overlay d-lg-none" id="sidebarOverlay"></div>
+
     <!-- Main Content -->
     <div class="container-fluid dashboard-container">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar">
+            <div class="col-md-3 col-lg-2 sidebar" id="sidebar">
                 <div class="sidebar-content">
                     <div class="sidebar-header">
                         <h5 class="text-white">Panel Paciente</h5>
+                        <!-- Close button for mobile -->
+                        <button class="btn btn-outline-light d-lg-none sidebar-close" type="button" id="sidebarClose">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                     
                     <nav class="sidebar-nav">
@@ -87,8 +99,8 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#" data-section="perfil">
-                                    <i class="fas fa-user me-2"></i>Mi Perfil
+                                <a class="nav-link" href="#" data-section="evolucion">
+                                    <i class="fas fa-chart-line me-2"></i>Mi Evolución
                                 </a>
                             </li>
                         </ul>
@@ -107,6 +119,10 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <!-- Custom JS -->
     <script src="patient-dashboard.js"></script>
     <script src="registro-comidas.js?v=20"></script>

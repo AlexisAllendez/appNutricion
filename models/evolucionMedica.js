@@ -28,6 +28,11 @@ class EvolucionMedica {
         this.paciente_nombre = data.paciente_nombre;
         this.paciente_email = data.paciente_email;
         this.paciente_telefono = data.paciente_telefono;
+        
+        // Datos antropométricos (joins)
+        this.peso = data.peso;
+        this.altura = data.altura;
+        this.imc = data.imc;
     }
 
     // Crear nueva evolución médica
@@ -70,9 +75,11 @@ class EvolucionMedica {
     static async getByUsuario(usuarioId) {
         try {
             const query = `
-                SELECT c.*, u.apellido_nombre as paciente_nombre, u.email as paciente_email, u.telefono as paciente_telefono
+                SELECT c.*, u.apellido_nombre as paciente_nombre, u.email as paciente_email, u.telefono as paciente_telefono,
+                       a.peso, a.altura, a.imc
                 FROM consultas c
                 LEFT JOIN usuarios u ON c.usuario_id = u.id
+                LEFT JOIN antropometria a ON c.usuario_id = a.usuario_id AND DATE(c.fecha) = DATE(a.fecha)
                 WHERE c.usuario_id = ? AND c.estado = 'completado'
                 ORDER BY c.fecha DESC, c.hora DESC
             `;

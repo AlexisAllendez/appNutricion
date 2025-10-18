@@ -5,6 +5,11 @@ let patientData = null;
 let currentSection = 'inicio';
 let professionalData = null;
 
+// Global variables for evolution
+let evolutionData = null;
+let evolutionWeightChart = null;
+let evolutionIMCChart = null;
+
 // Get professional data for timezone handling
 async function getProfessionalData() {
     if (professionalData) {
@@ -52,9 +57,13 @@ async function formatDateWithTimezone(dateString) {
         const profesional = await getProfessionalData();
         const timezone = profesional?.timezone || 'UTC';
         
-        console.log('🕐 Formateando fecha con zona horaria:', timezone);
+        // Si la fecha viene solo con fecha (YYYY-MM-DD), agregar hora mediodía para evitar problemas de zona horaria
+        let fechaParaFormatear = dateString;
+        if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            fechaParaFormatear = dateString + 'T12:00:00';
+        }
         
-        const date = new Date(dateString);
+        const date = new Date(fechaParaFormatear);
         if (isNaN(date.getTime())) {
             return 'Fecha inválida';
         }
@@ -172,14 +181,6 @@ async function loadPatientData() {
         
         if (result.success) {
             patientData = result.data;
-            console.log('✅ Datos del paciente cargados:', patientData);
-            console.log('👤 Datos del paciente específicos:', {
-                paciente: patientData.paciente,
-                stats: patientData.stats,
-                ultimaMedicion: patientData.ultimaMedicion,
-                planActivo: patientData.planActivo,
-                proximaConsulta: patientData.proximaConsulta
-            });
             
             // Load initial section
             loadSection(currentSection);
@@ -213,10 +214,76 @@ function initSidebar() {
             
             // Load section
             loadSection(section);
+            
+            // Close sidebar on mobile after navigation
+            closeSidebar();
         });
     });
     
+    // Initialize mobile sidebar functionality
+    initMobileSidebar();
+    
     console.log('✅ Sidebar inicializado');
+}
+
+// Initialize mobile sidebar functionality
+function initMobileSidebar() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    // Toggle sidebar
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            openSidebar();
+        });
+    }
+    
+    // Close sidebar
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', function() {
+            closeSidebar();
+        });
+    }
+    
+    // Close sidebar when clicking overlay
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', function() {
+            closeSidebar();
+        });
+    }
+    
+    // Close sidebar on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSidebar();
+        }
+    });
+}
+
+// Open sidebar
+function openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar && sidebarOverlay) {
+        sidebar.classList.add('show');
+        sidebarOverlay.classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent body scroll
+    }
+}
+
+// Close sidebar
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar && sidebarOverlay) {
+        sidebar.classList.remove('show');
+        sidebarOverlay.classList.remove('show');
+        document.body.style.overflow = ''; // Restore body scroll
+    }
 }
 
 // Load section content
@@ -258,8 +325,8 @@ async function loadSection(sectionName) {
             case 'registro-comidas':
                 html = await loadRegistroComidasSection();
             break;
-            case 'perfil':
-                html = await loadPerfilSection();
+            case 'evolucion':
+                html = await loadEvolucionSection();
             break;
             default:
                 html = await loadInicioSection();
@@ -319,7 +386,8 @@ async function loadInicioSection() {
     // Format dates with professional's timezone
     const fechaNacimiento = paciente.fecha_nacimiento ? await formatDateWithTimezone(paciente.fecha_nacimiento) : 'No especificado';
     const ultimaConsultaFecha = proximaConsulta ? await formatDateWithTimezone(proximaConsulta.fecha) : 'No registrada';
-    const ultimaMedicionFecha = ultimaMedicion ? await formatDateWithTimezone(ultimaMedicion.fecha) : 'No registrada';
+    // Usar creado_en para la última medición ya que tiene la hora correcta
+    const ultimaMedicionFecha = ultimaMedicion ? await formatDateWithTimezone(ultimaMedicion.creado_en || ultimaMedicion.fecha) : 'No registrada';
     const proximaConsultaFecha = proximaConsulta ? await formatDateWithTimezone(proximaConsulta.fecha) : 'No especificada';
     
     return `
@@ -1061,110 +1129,6 @@ async function loadRegistroComidasSection() {
     `;
 }
 
-// Load perfil section
-async function loadPerfilSection() {
-    if (!patientData) {
-        return '<div class="alert alert-warning">No hay datos del paciente disponibles</div>';
-    }
-    
-    const paciente = patientData.paciente;
-    
-    // Format date with professional's timezone
-    const fechaNacimiento = paciente.fecha_nacimiento ? await formatDateWithTimezone(paciente.fecha_nacimiento) : 'No especificada';
-    
-    return `
-        <div class="fade-in">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="mb-0">
-                    <i class="fas fa-user me-2 text-primary"></i>
-                    Mi Perfil
-                </h2>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-user-circle me-2"></i>
-                                Información Personal
-                            </h5>
-                        </div>
-                        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Nombre Completo</strong></label>
-                                        <p class="form-control-plaintext">${paciente.apellido_nombre || paciente.nombre || 'No especificado'}</p>
-                        </div>
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Email</strong></label>
-                                        <p class="form-control-plaintext">${paciente.email || 'No especificado'}</p>
-                        </div>
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Teléfono</strong></label>
-                                        <p class="form-control-plaintext">${paciente.telefono || 'No especificado'}</p>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Fecha de Nacimiento</strong></label>
-                                        <p class="form-control-plaintext">${fechaNacimiento}</p>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Género</strong></label>
-                                        <p class="form-control-plaintext">${paciente.sexo || paciente.genero || 'No especificado'}</p>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label"><strong>Dirección</strong></label>
-                                        <p class="form-control-plaintext">${paciente.domicilio || paciente.direccion || 'No especificada'}</p>
-                        </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-                
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-chart-line me-2"></i>
-                                Estadísticas
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="text-center mb-3">
-                                <div class="stat-icon inicio mx-auto mb-2">
-                                    <i class="fas fa-calendar-check"></i>
-                                </div>
-                                <h4>${patientData.stats?.consultas_totales || 0}</h4>
-                                <p class="text-muted mb-0">Consultas Totales</p>
-                            </div>
-                            
-                            <div class="text-center mb-3">
-                                <div class="stat-icon mediciones mx-auto mb-2">
-                                    <i class="fas fa-weight"></i>
-                </div>
-                                <h4>${patientData.stats?.mediciones_totales || 0}</h4>
-                                <p class="text-muted mb-0">Mediciones</p>
-                </div>
-                            
-                            <div class="text-center">
-                                <div class="stat-icon plan mx-auto mb-2">
-                                    <i class="fas fa-utensils"></i>
-            </div>
-                                <h4>${patientData.stats?.planes_activos || 0}</h4>
-                                <p class="text-muted mb-0">Planes Activos</p>
-                </div>
-                </div>
-            </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
 // Setup event listeners
 function setupEventListeners() {
     console.log('🎧 Configurando event listeners...');
@@ -1277,13 +1241,495 @@ function showAlert(message, type = 'info') {
     }, 5000);
 }
 
-// Get alert icon based on type
-function getAlertIcon(type) {
-    const icons = {
-        'success': 'check-circle',
-        'danger': 'exclamation-triangle',
-        'warning': 'exclamation-circle',
-        'info': 'info-circle'
+// ============================================================================
+// EVOLUTION SECTION
+// ============================================================================
+
+// Load evolution section
+async function loadEvolucionSection() {
+    console.log('🔄 Cargando sección de evolución...');
+    
+    try {
+        // Load evolution data
+        await loadEvolutionData();
+        
+        return `
+            <div class="evolution-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line me-2"></i>Mi Evolución Médica
+                    </h2>
+                    <p class="section-subtitle">Seguimiento de tu progreso y evolución médica</p>
+                </div>
+
+                <!-- Evolution Stats -->
+                <div class="evolution-stats-grid" id="evolutionStatsGrid">
+                    <div class="evolution-stat-card">
+                        <div class="evolution-stat-icon">
+                            <i class="fas fa-calendar-check text-primary"></i>
+                        </div>
+                        <div class="evolution-stat-number" id="totalEvolutions">--</div>
+                        <div class="evolution-stat-label">Evoluciones</div>
+                    </div>
+                    <div class="evolution-stat-card">
+                        <div class="evolution-stat-icon">
+                            <i class="fas fa-weight text-success"></i>
+                        </div>
+                        <div class="evolution-stat-number" id="weightChange">--</div>
+                        <div class="evolution-stat-label">Cambio Peso</div>
+                    </div>
+                    <div class="evolution-stat-card">
+                        <div class="evolution-stat-icon">
+                            <i class="fas fa-ruler text-info"></i>
+                        </div>
+                        <div class="evolution-stat-number" id="imcChange">--</div>
+                        <div class="evolution-stat-label">Cambio IMC</div>
+                    </div>
+                    <div class="evolution-stat-card">
+                        <div class="evolution-stat-icon">
+                            <i class="fas fa-chart-line text-warning"></i>
+                        </div>
+                        <div class="evolution-stat-number" id="progressScore">--</div>
+                        <div class="evolution-stat-label">Progreso</div>
+                    </div>
+                </div>
+
+                <!-- Evolution Charts -->
+                <div class="evolution-charts-grid">
+                    <div class="evolution-chart-card">
+                        <div class="evolution-chart-header">
+                            <i class="fas fa-weight me-2"></i>Evolución del Peso
+                        </div>
+                        <div class="evolution-chart-body">
+                            <canvas id="evolutionWeightChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    <div class="evolution-chart-card">
+                        <div class="evolution-chart-header">
+                            <i class="fas fa-ruler me-2"></i>Evolución del IMC
+                        </div>
+                        <div class="evolution-chart-body">
+                            <canvas id="evolutionIMCChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evolution Timeline -->
+                <div class="evolution-timeline-card">
+                    <div class="evolution-timeline-header">
+                        <i class="fas fa-history me-2"></i>Historial de Evoluciones
+                    </div>
+                    <div class="evolution-timeline-body">
+                        <div id="evolutionTimeline">
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Cargando historial de evoluciones...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('❌ Error cargando sección de evolución:', error);
+        return `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Error cargando la evolución médica: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Load evolution data
+async function loadEvolutionData() {
+    try {
+        console.log('📊 Cargando datos de evolución...');
+        
+        const token = localStorage.getItem('token');
+        const userData = JSON.parse(localStorage.getItem('user'));
+        
+        if (!token || !userData) {
+            throw new Error('No hay token o datos de usuario');
+        }
+        
+        // Get patient's evolution data (consultas)
+        const evolutionsResponse = await fetch(`/api/evoluciones-medicas/usuario/${userData.id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!evolutionsResponse.ok) {
+            throw new Error(`Error HTTP: ${evolutionsResponse.status}`);
+        }
+        
+        const evolutionsResult = await evolutionsResponse.json();
+        
+        if (evolutionsResult.success) {
+            evolutionData = {
+                evolutions: evolutionsResult.data || [],
+                anthropometry: []
+            };
+            console.log('✅ Datos de evolución cargados:', evolutionData);
+        } else {
+            evolutionData = {
+                evolutions: [],
+                anthropometry: []
+            };
+        }
+        
+        // Get anthropometry data for charts (peso e IMC)
+        const anthropometryResponse = await fetch(`/api/antropometria/usuario/${userData.id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (anthropometryResponse.ok) {
+            const anthropometryResult = await anthropometryResponse.json();
+            if (anthropometryResult.success) {
+                evolutionData.anthropometry = anthropometryResult.data;
+                console.log('✅ Datos antropométricos cargados:', anthropometryResult.data);
+            }
+        } else {
+            evolutionData.anthropometry = [];
+        }
+        
+        // Update stats and charts after DOM is ready
+        setTimeout(() => {
+            updateEvolutionStats();
+            updateEvolutionCharts();
+            updateEvolutionTimeline();
+        }, 100);
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos de evolución:', error);
+        evolutionData = { evolutions: [], anthropometry: [] };
+        
+        // Show empty state
+        setTimeout(() => {
+            updateEvolutionStats();
+            updateEvolutionCharts();
+            updateEvolutionTimeline();
+        }, 100);
+    }
+}
+
+// Calculate evolution stats (same logic as patient-history)
+function calculateEvolutionStats() {
+    const anthropometry = evolutionData.anthropometry || [];
+    const evolutions = evolutionData.evolutions || [];
+    
+    if (anthropometry.length === 0) {
+        evolutionData.stats = {
+            totalEvolutions: evolutions.length,
+            weightChange: '--',
+            imcChange: '--',
+            progressScore: '--'
+        };
+        return;
+    }
+
+    // Sort by date
+    const sorted = [...anthropometry].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+
+    // Calculate weight change
+    const weightChange = last.peso && first.peso ? 
+        (parseFloat(last.peso) - parseFloat(first.peso)).toFixed(1) : '--';
+
+    // Calculate IMC change
+    const imcChange = last.imc && first.imc ? 
+        (parseFloat(last.imc) - parseFloat(first.imc)).toFixed(1) : '--';
+
+    // Calculate progress score (simple formula based on weight and IMC changes)
+    let progressScore = '--';
+    if (weightChange !== '--' && imcChange !== '--') {
+        const weightProgress = parseFloat(weightChange) < 0 ? 1 : 0; // Weight loss is positive
+        const imcProgress = parseFloat(imcChange) < 0 ? 1 : 0; // IMC reduction is positive
+        progressScore = ((weightProgress + imcProgress) / 2 * 100).toFixed(0) + '%';
+    }
+
+    evolutionData.stats = {
+        totalEvolutions: evolutions.length,
+        weightChange: weightChange !== '--' ? `${weightChange > 0 ? '+' : ''}${weightChange} kg` : '--',
+        imcChange: imcChange !== '--' ? `${imcChange > 0 ? '+' : ''}${imcChange}` : '--',
+        progressScore: progressScore
     };
-    return icons[type] || 'info-circle';
+}
+
+// Update evolution stats
+function updateEvolutionStats() {
+    // Calculate stats first
+    calculateEvolutionStats();
+    
+    const stats = evolutionData.stats;
+    
+    // Update UI elements
+    const totalEvolutionsEl = document.getElementById('totalEvolutions');
+    const weightChangeEl = document.getElementById('weightChange');
+    const imcChangeEl = document.getElementById('imcChange');
+    const progressScoreEl = document.getElementById('progressScore');
+    
+    if (totalEvolutionsEl) totalEvolutionsEl.textContent = stats.totalEvolutions;
+    if (weightChangeEl) weightChangeEl.textContent = stats.weightChange;
+    if (imcChangeEl) imcChangeEl.textContent = stats.imcChange;
+    if (progressScoreEl) progressScoreEl.textContent = stats.progressScore;
+}
+
+// Update evolution charts
+function updateEvolutionCharts() {
+    // Destroy existing charts
+    if (evolutionWeightChart) {
+        evolutionWeightChart.destroy();
+    }
+    if (evolutionIMCChart) {
+        evolutionIMCChart.destroy();
+    }
+    
+    if (!evolutionData || !evolutionData.anthropometry || evolutionData.anthropometry.length === 0) {
+        updateEmptyEvolutionCharts();
+        return;
+    }
+    
+    // Sort anthropometry data by date
+    const sortedAnthropometry = [...evolutionData.anthropometry].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    // Prepare chart data
+    const labels = sortedAnthropometry.map(m => new Date(m.fecha).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }));
+    const weightData = sortedAnthropometry.map(m => {
+        const peso = m.peso ? parseFloat(m.peso) : null;
+        return peso && !isNaN(peso) ? peso : null;
+    }).filter(w => w !== null);
+    
+    const imcData = sortedAnthropometry.map(m => {
+        const imc = m.imc ? parseFloat(m.imc) : null;
+        return imc && !isNaN(imc) ? imc : null;
+    }).filter(i => i !== null);
+    
+    // Update weight chart
+    updateEvolutionWeightChart(labels, weightData);
+    
+    // Update IMC chart
+    updateEvolutionIMCChart(labels, imcData);
+}
+
+// Update evolution weight chart
+function updateEvolutionWeightChart(labels, data) {
+    const weightCtx = document.getElementById('evolutionWeightChart');
+    if (!weightCtx) return;
+    
+    // Clear the canvas
+    weightCtx.getContext('2d').clearRect(0, 0, weightCtx.width, weightCtx.height);
+    
+    evolutionWeightChart = new Chart(weightCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Peso (kg)',
+                data: data,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    title: {
+                        display: true,
+                        text: 'Peso (kg)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' kg';
+                        }
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fecha'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update evolution IMC chart
+function updateEvolutionIMCChart(labels, data) {
+    const imcCtx = document.getElementById('evolutionIMCChart');
+    if (!imcCtx) return;
+    
+    // Clear the canvas
+    imcCtx.getContext('2d').clearRect(0, 0, imcCtx.width, imcCtx.height);
+    
+    evolutionIMCChart = new Chart(imcCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'IMC',
+                data: data,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#10b981',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 15,
+                    max: 40,
+                    title: {
+                        display: true,
+                        text: 'IMC'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fecha'
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update empty evolution charts
+function updateEmptyEvolutionCharts() {
+    const weightCtx = document.getElementById('evolutionWeightChart');
+    const imcCtx = document.getElementById('evolutionIMCChart');
+    
+    if (weightCtx) {
+        weightCtx.getContext('2d').clearRect(0, 0, weightCtx.width, weightCtx.height);
+        weightCtx.getContext('2d').fillStyle = '#6c757d';
+        weightCtx.getContext('2d').font = '14px Arial';
+        weightCtx.getContext('2d').textAlign = 'center';
+        weightCtx.getContext('2d').fillText('No hay datos de peso disponibles', weightCtx.width / 2, weightCtx.height / 2);
+    }
+    
+    if (imcCtx) {
+        imcCtx.getContext('2d').clearRect(0, 0, imcCtx.width, imcCtx.height);
+        imcCtx.getContext('2d').fillStyle = '#6c757d';
+        imcCtx.getContext('2d').font = '14px Arial';
+        imcCtx.getContext('2d').textAlign = 'center';
+        imcCtx.getContext('2d').fillText('No hay datos de IMC disponibles', imcCtx.width / 2, imcCtx.height / 2);
+    }
+}
+
+// Update evolution timeline
+function updateEvolutionTimeline() {
+    const timeline = document.getElementById('evolutionTimeline');
+    if (!timeline) return;
+    
+    if (!evolutionData || !evolutionData.evolutions || evolutionData.evolutions.length === 0) {
+        timeline.innerHTML = `
+            <div class="evolution-empty-state">
+                <i class="fas fa-history"></i>
+                <h5>No hay evoluciones registradas</h5>
+                <p>Tu profesional aún no ha registrado evoluciones médicas</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by date (newest first)
+    const sortedEvolutions = [...evolutionData.evolutions].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    
+    timeline.innerHTML = `
+        <div class="evolution-timeline">
+            ${sortedEvolutions.map(evolution => createEvolutionTimelineItem(evolution)).join('')}
+        </div>
+    `;
+}
+
+// Create evolution timeline item
+function createEvolutionTimelineItem(evolution) {
+    const fecha = new Date(evolution.fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    const tipo = evolution.motivo_consulta ? evolution.motivo_consulta : 'Consulta médica';
+    
+    return `
+        <div class="evolution-timeline-item completed">
+            <div class="evolution-timeline-content">
+                <div class="evolution-timeline-date">${fecha}</div>
+                <div class="evolution-timeline-title">${tipo}</div>
+                <div class="evolution-timeline-description">
+                    ${evolution.evaluacion ? evolution.evaluacion.substring(0, 150) + '...' : 'Sin evaluación registrada'}
+                </div>
+                <div class="evolution-timeline-details">
+                    ${evolution.peso ? `
+                        <div class="evolution-detail-item">
+                            <div class="evolution-detail-label">Peso</div>
+                            <div class="evolution-detail-value">${evolution.peso} kg</div>
+                        </div>
+                    ` : ''}
+                    ${evolution.imc ? `
+                        <div class="evolution-detail-item">
+                            <div class="evolution-detail-label">IMC</div>
+                            <div class="evolution-detail-value">${evolution.imc}</div>
+                        </div>
+                    ` : ''}
+                    ${evolution.plan_tratamiento ? `
+                        <div class="evolution-detail-item">
+                            <div class="evolution-detail-label">Plan de Tratamiento</div>
+                            <div class="evolution-detail-value">${evolution.plan_tratamiento.substring(0, 50)}...</div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
 }
