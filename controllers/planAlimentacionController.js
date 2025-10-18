@@ -297,6 +297,33 @@ class PlanAlimentacionController {
             });
         }
     }
+
+    // Obtener pacientes asignados a un plan específico
+    async getPacientesAsignados(req, res) {
+        try {
+            const { planId } = req.params;
+
+            if (!planId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID del plan es requerido'
+                });
+            }
+
+            const pacientes = await this.planAlimentacion.getPacientesAsignados(planId);
+            
+            res.json({
+                success: true,
+                data: pacientes
+            });
+        } catch (error) {
+            console.error('Error en getPacientesAsignados:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor'
+            });
+        }
+    }
 }
 
 module.exports = PlanAlimentacionController;

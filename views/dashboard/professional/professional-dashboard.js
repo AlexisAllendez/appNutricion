@@ -2313,14 +2313,6 @@ function displayPlansSummary(planes) {
                             <div class="small">${new Date(plan.fecha_inicio).toLocaleDateString('es-ES')}</div>
                 </div>
                             </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-success flex-fill editarPlanBtn" data-plan-id="${plan.id}">
-                            <i class="fas fa-utensils me-1"></i>Editar Comidas
-                        </button>
-                        <button class="btn btn-sm btn-outline-primary flex-fill verPlanBtn">
-                            <i class="fas fa-eye me-1"></i>Ver
-                        </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -2328,20 +2320,8 @@ function displayPlansSummary(planes) {
     
     // Agregar event listeners a los botones dinámicos
     setTimeout(() => {
-        // Event listeners para botones Editar Comidas
-        document.querySelectorAll('.editarPlanBtn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const planId = this.getAttribute('data-plan-id');
-                openPlanEditor(planId);
-            });
-        });
-        
-        // Event listeners para botones Ver
-        document.querySelectorAll('.verPlanBtn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                window.location.href = '/plan-alimentario';
-            });
-        });
+        // Los botones de acción han sido eliminados de la vista resumen
+        // Solo se mantiene la funcionalidad de vista tabla completa
         
         // Event listener para botón Crear Primer Plan
         const crearPrimerPlanBtn = document.getElementById('crearPrimerPlanBtn');
@@ -4741,6 +4721,83 @@ async function logout() {
     }
 }
 
+// Función para enviar plan alimentario por email
+async function enviarPlanPorEmail(planId, pacienteId) {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showAlert('No se encontró el token de autenticación', 'danger');
+            return;
+        }
+
+        // Mostrar modal de confirmación
+        const confirmarEnvio = confirm('¿Estás seguro de que quieres enviar este plan alimentario por email al paciente?');
+        if (!confirmarEnvio) {
+            return;
+        }
+
+        // Mostrar indicador de carga
+        const boton = document.querySelector(`[data-plan-id="${planId}"].enviarEmailBtn`);
+        if (boton) {
+            boton.disabled = true;
+            boton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando...';
+        }
+
+        const response = await fetch('/api/email/send-plan', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                planId: planId,
+                pacienteId: pacienteId
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showAlert(`✅ Plan alimentario enviado exitosamente a ${result.data.pacienteEmail}`, 'success');
+        } else {
+            showAlert(`❌ Error enviando el plan: ${result.message}`, 'danger');
+        }
+
+    } catch (error) {
+        console.error('Error enviando plan por email:', error);
+        showAlert('❌ Error enviando el plan alimentario', 'danger');
+    } finally {
+        // Restaurar botón
+        const boton = document.querySelector(`[data-plan-id="${planId}"].enviarEmailBtn`);
+        if (boton) {
+            boton.disabled = false;
+            boton.innerHTML = '<i class="fas fa-envelope me-1"></i>Enviar Email';
+        }
+    }
+}
+
+// Función para mostrar alertas
+function showAlert(message, type = 'info') {
+    // Crear elemento de alerta
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Agregar al DOM
+    document.body.appendChild(alertDiv);
+
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
 // Función que ejecuta el logout
 async function performLogout() {
     try {
@@ -4766,7 +4823,329 @@ async function performLogout() {
     }
 }
 
+// ==================== FUNCIONES PARA VISTA DE TABLA DE PLANES ====================
+
+// Variables globales para la tabla de planes
+let todosLosPlanes = [];
+let planesFiltrados = [];
+let paginaActualPlanes = 1;
+const elementosPorPaginaPlanes = 10;
+
+// Función para alternar entre vista resumen y tabla
+function toggleVistaPlanes(vista) {
+    const vistaResumen = document.getElementById('vistaResumen');
+    const vistaTabla = document.getElementById('vistaTabla');
+    const btnResumen = document.getElementById('vistaResumenBtn');
+    const btnTabla = document.getElementById('vistaTablaBtn');
+    
+    if (vista === 'tabla') {
+        vistaResumen.style.display = 'none';
+        vistaTabla.style.display = 'block';
+        btnResumen.classList.remove('active');
+        btnTabla.classList.add('active');
+        
+        // Cargar datos de la tabla si no están cargados
+        if (todosLosPlanes.length === 0) {
+            cargarTodosLosPlanes();
+        } else {
+            mostrarTablaPlanes();
+        }
+    } else {
+        vistaResumen.style.display = 'block';
+        vistaTabla.style.display = 'none';
+        btnTabla.classList.remove('active');
+        btnResumen.classList.add('active');
+    }
+}
+
+// Función para cargar todos los planes
+async function cargarTodosLosPlanes() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            showAlert('No se encontró el token de autenticación', 'danger');
+            return;
+        }
+
+        // Obtener el ID del profesional del token
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const profesionalId = payload.profesional_id || payload.id;
+
+        if (!profesionalId) {
+            showAlert('No se pudo obtener el ID del profesional', 'danger');
+            return;
+        }
+
+        const response = await fetch(`/api/plan-alimentacion/profesional/${profesionalId}/planes`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            todosLosPlanes = result.data || [];
+            planesFiltrados = [...todosLosPlanes];
+            mostrarTablaPlanes();
+        } else {
+            throw new Error(result.message || 'Error al cargar los planes');
+        }
+
+    } catch (error) {
+        console.error('Error cargando todos los planes:', error);
+        mostrarErrorTablaPlanes('Error al cargar los planes alimentarios');
+    }
+}
+
+// Función para mostrar la tabla de planes
+function mostrarTablaPlanes() {
+    const tbody = document.getElementById('cuerpoTablaPlanes');
+    if (!tbody) return;
+
+    if (planesFiltrados.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fas fa-utensils fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No hay planes alimentarios</h5>
+                    <p class="text-muted mb-0">No se encontraron planes que coincidan con los filtros aplicados.</p>
+                </td>
+            </tr>
+        `;
+        mostrarPaginacionPlanes();
+        return;
+    }
+
+    // Calcular elementos para la página actual
+    const inicio = (paginaActualPlanes - 1) * elementosPorPaginaPlanes;
+    const fin = inicio + elementosPorPaginaPlanes;
+    const planesPagina = planesFiltrados.slice(inicio, fin);
+
+    tbody.innerHTML = planesPagina.map(plan => `
+        <tr>
+            <td>
+                <div class="fw-medium">${plan.nombre || 'Sin nombre'}</div>
+                <small class="text-muted">${plan.descripcion ? plan.descripcion.substring(0, 50) + '...' : 'Sin descripción'}</small>
+            </td>
+            <td>
+                <span class="badge bg-${getTipoPlanColor(plan.tipo)}">${getTipoPlanTexto(plan.tipo)}</span>
+            </td>
+            <td>
+                <div class="fw-medium">${plan.objetivo || 'Sin objetivo'}</div>
+            </td>
+            <td>
+                <div class="fw-medium">${plan.calorias_diarias || 'N/A'}</div>
+                <small class="text-muted">kcal/día</small>
+            </td>
+            <td>
+                <span class="badge ${plan.activo ? 'bg-success' : 'bg-secondary'}">
+                    ${plan.activo ? 'Activo' : 'Inactivo'}
+                </span>
+            </td>
+            <td>
+                <div class="fw-medium">${formatearFecha(plan.fecha_inicio)}</div>
+            </td>
+            <td>
+                <div class="fw-medium">${plan.fecha_fin ? formatearFecha(plan.fecha_fin) : 'Indefinido'}</div>
+            </td>
+        </tr>
+    `).join('');
+
+    mostrarPaginacionPlanes();
+}
+
+// Función para mostrar paginación
+function mostrarPaginacionPlanes() {
+    const paginacion = document.getElementById('paginacionPlanes');
+    if (!paginacion) return;
+
+    const totalPaginas = Math.ceil(planesFiltrados.length / elementosPorPaginaPlanes);
+    
+    if (totalPaginas <= 1) {
+        paginacion.innerHTML = '';
+        return;
+    }
+
+    let paginacionHTML = '';
+    
+    // Botón anterior
+    paginacionHTML += `
+        <li class="page-item ${paginaActualPlanes === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="cambiarPaginaPlanes(${paginaActualPlanes - 1})">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+
+    // Páginas
+    const inicio = Math.max(1, paginaActualPlanes - 2);
+    const fin = Math.min(totalPaginas, paginaActualPlanes + 2);
+
+    for (let i = inicio; i <= fin; i++) {
+        paginacionHTML += `
+            <li class="page-item ${i === paginaActualPlanes ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="cambiarPaginaPlanes(${i})">${i}</a>
+            </li>
+        `;
+    }
+
+    // Botón siguiente
+    paginacionHTML += `
+        <li class="page-item ${paginaActualPlanes === totalPaginas ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="cambiarPaginaPlanes(${paginaActualPlanes + 1})">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+
+    paginacion.innerHTML = paginacionHTML;
+}
+
+// Función para cambiar página
+function cambiarPaginaPlanes(nuevaPagina) {
+    const totalPaginas = Math.ceil(planesFiltrados.length / elementosPorPaginaPlanes);
+    
+    if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
+        paginaActualPlanes = nuevaPagina;
+        mostrarTablaPlanes();
+    }
+}
+
+// Función para filtrar planes
+function filtrarPlanes() {
+    const busqueda = document.getElementById('buscarPlanes').value.toLowerCase();
+    const estado = document.getElementById('filtroEstadoPlanes').value;
+    const tipo = document.getElementById('filtroTipoPlanes').value;
+
+    planesFiltrados = todosLosPlanes.filter(plan => {
+        const coincideBusqueda = !busqueda || 
+            (plan.nombre && plan.nombre.toLowerCase().includes(busqueda)) ||
+            (plan.objetivo && plan.objetivo.toLowerCase().includes(busqueda)) ||
+            (plan.descripcion && plan.descripcion.toLowerCase().includes(busqueda));
+
+        const coincideEstado = !estado || 
+            (estado === 'activo' && plan.activo) ||
+            (estado === 'inactivo' && !plan.activo);
+
+        const coincideTipo = !tipo || plan.tipo === tipo;
+
+        return coincideBusqueda && coincideEstado && coincideTipo;
+    });
+
+    paginaActualPlanes = 1;
+    mostrarTablaPlanes();
+}
+
+// Función para limpiar filtros
+function limpiarFiltrosPlanes() {
+    document.getElementById('buscarPlanes').value = '';
+    document.getElementById('filtroEstadoPlanes').value = '';
+    document.getElementById('filtroTipoPlanes').value = '';
+    
+    planesFiltrados = [...todosLosPlanes];
+    paginaActualPlanes = 1;
+    mostrarTablaPlanes();
+}
+
+// Funciones auxiliares
+function getTipoPlanColor(tipo) {
+    switch (tipo) {
+        case 'simple': return 'success';
+        case 'intermedio': return 'warning';
+        case 'avanzado': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+function getTipoPlanTexto(tipo) {
+    switch (tipo) {
+        case 'simple': return 'Simple';
+        case 'intermedio': return 'Intermedio';
+        case 'avanzado': return 'Avanzado';
+        default: return 'No definido';
+    }
+}
+
+function formatearFecha(fecha) {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES');
+}
+
+function mostrarErrorTablaPlanes(mensaje) {
+    const tbody = document.getElementById('cuerpoTablaPlanes');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5 class="text-warning">Error</h5>
+                    <p class="text-muted mb-0">${mensaje}</p>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Funciones para acciones de la tabla
+function verDetallesPlan(planId) {
+    // Implementar vista de detalles del plan
+    showAlert('Función de ver detalles próximamente', 'info');
+}
+
+function editarComidasPlan(planId) {
+    // Redirigir al editor de comidas
+    window.location.href = `/plan-editor?id=${planId}`;
+}
+
+// ==================== EVENT LISTENERS PARA VISTA DE TABLA ====================
+
+// Event listeners para los botones de vista
+document.addEventListener('DOMContentLoaded', function() {
+    // Botones de alternar vista
+    const btnResumen = document.getElementById('vistaResumenBtn');
+    const btnTabla = document.getElementById('vistaTablaBtn');
+    
+    if (btnResumen) {
+        btnResumen.addEventListener('click', () => toggleVistaPlanes('resumen'));
+    }
+    
+    if (btnTabla) {
+        btnTabla.addEventListener('click', () => toggleVistaPlanes('tabla'));
+    }
+
+    // Filtros
+    const buscarPlanes = document.getElementById('buscarPlanes');
+    const filtroEstadoPlanes = document.getElementById('filtroEstadoPlanes');
+    const filtroTipoPlanes = document.getElementById('filtroTipoPlanes');
+    const limpiarFiltrosPlanes = document.getElementById('limpiarFiltrosPlanes');
+
+    if (buscarPlanes) {
+        buscarPlanes.addEventListener('input', filtrarPlanes);
+    }
+    
+    if (filtroEstadoPlanes) {
+        filtroEstadoPlanes.addEventListener('change', filtrarPlanes);
+    }
+    
+    if (filtroTipoPlanes) {
+        filtroTipoPlanes.addEventListener('change', filtrarPlanes);
+    }
+    
+    if (limpiarFiltrosPlanes) {
+        limpiarFiltrosPlanes.addEventListener('click', limpiarFiltrosPlanes);
+    }
+});
+
 // Exportar funciones globalmente para acceso desde otros scripts
 window.showSection = showSection;
 window.logout = logout;
+window.toggleVistaPlanes = toggleVistaPlanes;
+window.cambiarPaginaPlanes = cambiarPaginaPlanes;
+window.verDetallesPlan = verDetallesPlan;
+window.editarComidasPlan = editarComidasPlan;
 

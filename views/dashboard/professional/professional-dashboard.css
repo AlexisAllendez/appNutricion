@@ -1968,3 +1968,134 @@
         margin-bottom: 0.5rem;
     }
 }
+
+/* ==================== ESTILOS PARA VISTA DE TABLA DE PLANES ==================== */
+
+/* Botones de alternar vista */
+.btn-group .btn.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+/* Avatar pequeño para la tabla */
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+}
+
+/* Estilos para la tabla de planes */
+#tablaPlanesCompleta {
+    font-size: 0.9rem;
+}
+
+#tablaPlanesCompleta th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+#tablaPlanesCompleta td {
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+}
+
+#tablaPlanesCompleta tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Botones de acción en la tabla */
+#tablaPlanesCompleta .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+#tablaPlanesCompleta .btn-group .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Badges en la tabla */
+#tablaPlanesCompleta .badge {
+    font-size: 0.7rem;
+    padding: 0.35em 0.65em;
+}
+
+/* Filtros */
+#buscarPlanes, #filtroEstadoPlanes, #filtroTipoPlanes {
+    font-size: 0.875rem;
+}
+
+#limpiarFiltrosPlanes {
+    font-size: 0.875rem;
+}
+
+/* Paginación */
+#paginacionPlanes .page-link {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+#paginacionPlanes .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+/* Estados de carga */
+.vista-planes .spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Responsive para la tabla */
+@media (max-width: 992px) {
+    #tablaPlanesCompleta {
+        font-size: 0.8rem;
+    }
+    
+    #tablaPlanesCompleta th,
+    #tablaPlanesCompleta td {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .avatar-sm {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 768px) {
+    #tablaPlanesCompleta {
+        font-size: 0.75rem;
+    }
+    
+    #tablaPlanesCompleta th,
+    #tablaPlanesCompleta td {
+        padding: 0.375rem 0.125rem;
+    }
+    
+    #tablaPlanesCompleta .btn-group .btn {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.7rem;
+    }
+    
+    .avatar-sm {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+    }
+    
+    /* Ocultar algunas columnas en móvil */
+    #tablaPlanesCompleta th:nth-child(6),
+    #tablaPlanesCompleta td:nth-child(6),
+    #tablaPlanesCompleta th:nth-child(7),
+    #tablaPlanesCompleta td:nth-child(7) {
+        display: none;
+    }
+}

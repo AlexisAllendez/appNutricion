@@ -72,16 +72,47 @@ class PlanAlimentacion {
     async getPlanesByProfesional(profesionalId) {
         try {
             const query = `
-                SELECT pa.*, u.apellido_nombre as paciente_nombre
+                SELECT 
+                    pa.*,
+                    GROUP_CONCAT(u.apellido_nombre SEPARATOR ' | ') as paciente_nombre,
+                    GROUP_CONCAT(pa_asignacion.fecha_inicio SEPARATOR ', ') as fecha_asignacion_inicio,
+                    GROUP_CONCAT(pa_asignacion.fecha_fin SEPARATOR ', ') as fecha_asignacion_fin,
+                    COUNT(pa_asignacion.id) as total_asignaciones
                 FROM ${this.tableName} pa
-                LEFT JOIN usuarios u ON pa.usuario_id = u.id
+                LEFT JOIN plan_asignaciones pa_asignacion ON pa.id = pa_asignacion.plan_id AND pa_asignacion.activo = TRUE
+                LEFT JOIN usuarios u ON pa_asignacion.usuario_id = u.id
                 WHERE pa.profesional_id = ?
+                GROUP BY pa.id
                 ORDER BY pa.creado_en DESC
             `;
             const result = await executeQuery(query, [profesionalId]);
             return result;
         } catch (error) {
             console.error('Error al obtener planes del profesional:', error);
+            throw error;
+        }
+    }
+
+    // Obtener pacientes asignados a un plan específico
+    async getPacientesAsignados(planId) {
+        try {
+            const query = `
+                SELECT 
+                    u.id,
+                    u.apellido_nombre,
+                    u.email,
+                    pa_asignacion.fecha_inicio,
+                    pa_asignacion.fecha_fin,
+                    pa_asignacion.activo
+                FROM plan_asignaciones pa_asignacion
+                INNER JOIN usuarios u ON pa_asignacion.usuario_id = u.id
+                WHERE pa_asignacion.plan_id = ? AND pa_asignacion.activo = TRUE
+                ORDER BY u.apellido_nombre ASC
+            `;
+            const result = await executeQuery(query, [planId]);
+            return result;
+        } catch (error) {
+            console.error('Error al obtener pacientes asignados al plan:', error);
             throw error;
         }
     }

@@ -1121,8 +1121,8 @@ async function loadRegistroComidasSection() {
                         <div class="text-center p-3">
                             <i class="fas fa-spinner fa-spin text-primary mb-2" style="font-size: 18px;"></i>
                             <p class="text-muted mb-0" style="font-size: 13px;">Cargando registros de comidas...</p>
-                        </div>
-                    </div>
+                </div>
+            </div>
                 </div>
             </div>
         </div>

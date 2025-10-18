@@ -5,6 +5,14 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
 
+// Debug: Verificar que las variables de entorno se cargan
+console.log('🔍 Variables de entorno cargadas:', {
+    SMTP_HOST: process.env.SMTP_HOST || 'No definido',
+    SMTP_PORT: process.env.SMTP_PORT || 'No definido',
+    SMTP_USER: process.env.SMTP_USER ? 'Configurado' : 'No definido',
+    SMTP_PASS: process.env.SMTP_PASS ? 'Configurado' : 'No definido'
+});
+
 // Importar configuración de base de datos
 const { testConnection, handleDatabaseError } = require('./config/db');
 
@@ -27,6 +35,7 @@ const agendaRoutes = require('./routes/agendaRoutes');
 const evolucionMedicaRoutes = require('./routes/evolucionMedicaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 const antropometriaRoutes = require('./routes/antropometriaRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 
 // Importar middlewares
 const errorHandler = require('./middleware/errorHandler');
@@ -90,6 +99,7 @@ app.use('/api/evoluciones-medicas', evolucionMedicaRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/reservas', require('./routes/reservaRoutes'));
 app.use('/api/registro-comidas', require('./routes/registroComidasRoutes'));
+app.use('/api/email', emailRoutes);
 app.use('/api', registrationKeyRoutes);
 
 // Ruta de prueba de conexión

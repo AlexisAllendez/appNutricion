@@ -222,15 +222,24 @@ function renderPlans() {
                 </span>
             </td>
             <td>
-                <div class="action-buttons">
+                <div class="action-buttons d-flex gap-2">
                     <button class="btn btn-outline-primary btn-sm view-plan-btn" data-plan-id="${plan.id}" title="Ver detalles">
                         <i class="fas fa-eye"></i>
                     </button>
                     <button class="btn btn-outline-success btn-sm edit-plan-btn" data-plan-id="${plan.id}" title="Editar">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-outline-${plan.activo ? 'secondary' : 'success'} btn-sm toggle-plan-btn" data-plan-id="${plan.id}" data-current-status="${plan.activo}" title="${plan.activo ? 'Desactivar' : 'Activar'}">
-                        <i class="fas fa-${plan.activo ? 'pause' : 'play'}"></i>
+                    <button class="btn btn-${plan.activo ? 'warning' : 'success'} btn-sm toggle-plan-btn" data-plan-id="${plan.id}" data-current-status="${plan.activo}" title="${plan.activo ? 'Desactivar Plan' : 'Activar Plan'}">
+                        <i class="fas fa-${plan.activo ? 'pause' : 'play'} me-1"></i>
+                        ${plan.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm delete-plan-btn" data-plan-id="${plan.id}" title="Eliminar Plan">
+                        <i class="fas fa-trash me-1"></i>
+                        Eliminar
+                    </button>
+                    <button class="btn btn-outline-info btn-sm send-email-btn" data-plan-id="${plan.id}" data-plan-name="${plan.nombre}" title="Enviar por Email">
+                        <i class="fas fa-envelope me-1"></i>
+                        Email
                     </button>
                 </div>
             </td>
@@ -292,6 +301,23 @@ function agregarEventListenersPlanes() {
             const planId = e.target.closest('.toggle-plan-btn').getAttribute('data-plan-id');
             const currentStatus = e.target.closest('.toggle-plan-btn').getAttribute('data-current-status') === 'true';
             togglePlan(planId, currentStatus);
+        });
+    });
+    
+    // Botón eliminar plan
+    document.querySelectorAll('.delete-plan-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const planId = e.target.closest('.delete-plan-btn').getAttribute('data-plan-id');
+            deletePlan(planId);
+        });
+    });
+    
+    // Botón enviar email
+    document.querySelectorAll('.send-email-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const planId = e.target.closest('.send-email-btn').getAttribute('data-plan-id');
+            const planName = e.target.closest('.send-email-btn').getAttribute('data-plan-name');
+            showEmailModal(planId, planName);
         });
     });
 }
@@ -411,6 +437,436 @@ async function togglePlan(planId, currentStatus) {
     } catch (error) {
         console.error('Error toggle plan:', error);
         showAlert('Error al actualizar el plan: ' + error.message, 'danger');
+    }
+}
+
+async function deletePlan(planId) {
+    try {
+        // Confirmar eliminación con mensaje más específico
+        const confirmMessage = `¿Estás seguro de que quieres ELIMINAR este plan?\n\n⚠️ Esta acción es IRREVERSIBLE y eliminará:\n• El plan alimentario completo\n• Todas las comidas asociadas\n• El historial del plan\n\nEscribe "ELIMINAR" para confirmar:`;
+        
+        const userInput = prompt(confirmMessage);
+        if (userInput !== 'ELIMINAR') {
+            showAlert('Eliminación cancelada', 'info');
+            return;
+        }
+        
+        console.log('🗑️ Eliminando plan:', planId);
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/plan-alimentacion/plan/${planId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al eliminar el plan');
+        }
+        
+        showAlert('Plan eliminado exitosamente', 'success');
+        
+        // Recargar datos
+        await loadPlans();
+        
+    } catch (error) {
+        console.error('Error delete plan:', error);
+        showAlert('Error al eliminar el plan: ' + error.message, 'danger');
+    }
+}
+
+// Mostrar modal para enviar email
+async function showEmailModal(planId, planName) {
+    try {
+        // Obtener lista de todos los pacientes del profesional
+        const todosLosPacientes = await getTodosLosPacientes();
+        
+        // Crear modal dinámicamente si no existe
+        let modal = document.getElementById('modalEnviarEmail');
+        if (!modal) {
+            const modalHTML = `
+                <div class="modal fade" id="modalEnviarEmail" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-envelope me-2"></i>Enviar Plan por Email
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body" id="emailModalContent">
+                                <!-- Contenido dinámico -->
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary" id="enviarEmailBtn">
+                                    <i class="fas fa-paper-plane me-2"></i>Enviar Email
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modal = document.getElementById('modalEnviarEmail');
+        }
+        
+        // Llenar contenido del modal
+        const content = document.getElementById('emailModalContent');
+        content.innerHTML = `
+            <div class="mb-3">
+                <h6><i class="fas fa-file-alt me-2"></i>Plan: <strong>${planName}</strong></h6>
+            </div>
+            
+            <div class="mb-4">
+                <h6><i class="fas fa-users me-2"></i>Seleccionar Destinatario</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Buscar Paciente</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="searchPaciente" placeholder="Buscar por nombre o email...">
+                                    <button class="btn btn-outline-secondary" type="button" id="searchPacienteBtn">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="Limpiar búsqueda">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="pacientes-list" style="max-height: 200px; overflow-y: auto;">
+                                    <div id="pacientesList">
+                                        <!-- Lista de pacientes -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Email Personalizado</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="radio" name="emailOption" id="emailCustom" value="custom">
+                                    <label class="form-check-label" for="emailCustom">
+                                        Escribir email personalizado
+                                    </label>
+                                </div>
+                                <input type="email" class="form-control" id="customEmail" placeholder="ejemplo@correo.com" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="emailSubject" class="form-label">Asunto del Email</label>
+                <input type="text" class="form-control" id="emailSubject" value="Plan Alimentario - ${planName}">
+            </div>
+            
+            <div class="mb-3">
+                <label for="emailMessage" class="form-label">Mensaje Adicional (Opcional)</label>
+                <textarea class="form-control" id="emailMessage" rows="3" placeholder="Escribe un mensaje personalizado..."></textarea>
+            </div>
+            
+            <div id="emailValidationAlert" class="alert alert-warning" style="display: none;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <span id="emailValidationMessage"></span>
+            </div>
+        `;
+        
+        // Llenar lista de pacientes
+        window.todosLosPacientes = todosLosPacientes; // Almacenar globalmente para la búsqueda
+        renderPacientesList(todosLosPacientes);
+        
+        // Configurar event listeners del modal
+        setupEmailModalListeners(planId);
+        
+        // Mostrar modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        
+    } catch (error) {
+        console.error('Error mostrando modal de email:', error);
+        showAlert('Error al cargar el modal de email', 'danger');
+    }
+}
+
+// Configurar event listeners del modal de email
+function setupEmailModalListeners(planId) {
+    // Radio buttons para seleccionar opción
+    document.querySelectorAll('input[name="emailOption"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const customEmailInput = document.getElementById('customEmail');
+            if (this.value === 'custom') {
+                customEmailInput.disabled = false;
+                customEmailInput.focus();
+            } else {
+                customEmailInput.disabled = true;
+                customEmailInput.value = '';
+            }
+        });
+    });
+    
+    // Búsqueda de pacientes
+    const searchInput = document.getElementById('searchPaciente');
+    const searchBtn = document.getElementById('searchPacienteBtn');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    
+    if (searchInput) {
+        // Búsqueda al presionar Enter
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchPacientes();
+            }
+        });
+        
+        // Búsqueda al escribir (con debounce)
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchPacientes();
+            }, 300);
+        });
+    }
+    
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchPacientes);
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            document.getElementById('searchPaciente').value = '';
+            searchPacientes();
+        });
+    }
+    
+    // Botón enviar email
+    const enviarBtn = document.getElementById('enviarEmailBtn');
+    if (enviarBtn) {
+        enviarBtn.addEventListener('click', () => {
+            enviarPlanPorEmail(planId);
+        });
+    }
+}
+
+// Obtener todos los pacientes del profesional
+async function getTodosLosPacientes() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/plan-alimentacion/profesional/${profesionalId}/pacientes`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al obtener pacientes');
+        }
+        
+        const result = await response.json();
+        return result.data || [];
+        
+    } catch (error) {
+        console.error('Error obteniendo pacientes:', error);
+        return [];
+    }
+}
+
+// Renderizar lista de pacientes
+function renderPacientesList(pacientes, searchTerm = '') {
+    const pacientesList = document.getElementById('pacientesList');
+    if (!pacientesList) return;
+    
+    let pacientesFiltrados = pacientes;
+    
+    // Filtrar por término de búsqueda
+    if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        pacientesFiltrados = pacientes.filter(paciente => 
+            (paciente.apellido_nombre && paciente.apellido_nombre.toLowerCase().includes(term)) ||
+            (paciente.email && paciente.email.toLowerCase().includes(term))
+        );
+    }
+    
+    if (pacientesFiltrados.length === 0) {
+        pacientesList.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="fas fa-search fa-2x mb-2"></i>
+                <p class="mb-0">${searchTerm ? 'No se encontraron pacientes' : 'No hay pacientes registrados'}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    pacientesList.innerHTML = pacientesFiltrados.map(paciente => {
+        const hasEmail = paciente.email && paciente.email.trim() !== '';
+        const emailStatus = hasEmail ? 
+            `<small class="text-success"><i class="fas fa-check-circle me-1"></i>Email disponible</small>` :
+            `<small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Sin email</small>`;
+        
+        return `
+            <div class="form-check mb-2 ${!hasEmail ? 'opacity-50' : ''}">
+                <input class="form-check-input" type="radio" name="emailOption" id="paciente_${paciente.id}" 
+                       value="${paciente.id}" data-email="${paciente.email || ''}" 
+                       ${!hasEmail ? 'disabled' : ''}>
+                <label class="form-check-label" for="paciente_${paciente.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${paciente.apellido_nombre}</strong>
+                            <br><small class="text-muted">${paciente.email || 'Sin email registrado'}</small>
+                        </div>
+                        <div class="text-end">
+                            ${emailStatus}
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+    }).join('');
+}
+
+// Buscar pacientes
+function searchPacientes() {
+    const searchTerm = document.getElementById('searchPaciente').value;
+    const todosLosPacientes = window.todosLosPacientes || [];
+    renderPacientesList(todosLosPacientes, searchTerm);
+}
+
+// Obtener pacientes asignados al plan
+async function getPacientesAsignados(planId) {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/plan-alimentacion/plan/${planId}/pacientes`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al obtener pacientes asignados');
+        }
+        
+        const result = await response.json();
+        return result.data || [];
+        
+    } catch (error) {
+        console.error('Error obteniendo pacientes asignados:', error);
+        return [];
+    }
+}
+
+// Enviar plan por email
+async function enviarPlanPorEmail(planId) {
+    try {
+        const selectedOption = document.querySelector('input[name="emailOption"]:checked');
+        if (!selectedOption) {
+            showAlert('Por favor selecciona un destinatario', 'warning');
+            return;
+        }
+        
+        let emailDestino = '';
+        let pacienteId = null;
+        let pacienteNombre = '';
+        
+        if (selectedOption.value === 'custom') {
+            emailDestino = document.getElementById('customEmail').value;
+            pacienteNombre = 'Destinatario';
+            if (!emailDestino) {
+                showAlert('Por favor ingresa un email válido', 'warning');
+                return;
+            }
+        } else {
+            pacienteId = selectedOption.value;
+            emailDestino = selectedOption.getAttribute('data-email');
+            
+            // Verificar si el paciente tiene email
+            if (!emailDestino || emailDestino.trim() === '') {
+                showEmailValidationAlert('Este paciente no tiene un email registrado. Por favor usa la opción "Email Personalizado" para enviar a otro correo.');
+                return;
+            }
+            
+            // Obtener nombre del paciente
+            const todosLosPacientes = window.todosLosPacientes || [];
+            const paciente = todosLosPacientes.find(p => p.id == pacienteId);
+            pacienteNombre = paciente ? paciente.apellido_nombre : 'Paciente';
+        }
+        
+        const subject = document.getElementById('emailSubject').value;
+        const message = document.getElementById('emailMessage').value;
+        
+        // Ocultar alerta de validación si existe
+        hideEmailValidationAlert();
+        
+        // Mostrar loading en el botón
+        const enviarBtn = document.getElementById('enviarEmailBtn');
+        const originalText = enviarBtn.innerHTML;
+        enviarBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Enviando...';
+        enviarBtn.disabled = true;
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/email/send-plan', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                planId: planId,
+                pacienteId: pacienteId,
+                emailDestino: emailDestino,
+                subject: subject,
+                message: message
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al enviar el email');
+        }
+        
+        const result = await response.json();
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEnviarEmail'));
+        modal.hide();
+        
+        showAlert(`Plan enviado exitosamente a ${pacienteNombre} (${emailDestino})`, 'success');
+        
+    } catch (error) {
+        console.error('Error enviando email:', error);
+        showAlert('Error al enviar el email: ' + error.message, 'danger');
+        
+        // Restaurar botón
+        const enviarBtn = document.getElementById('enviarEmailBtn');
+        enviarBtn.innerHTML = originalText;
+        enviarBtn.disabled = false;
+    }
+}
+
+// Mostrar alerta de validación de email
+function showEmailValidationAlert(message) {
+    const alert = document.getElementById('emailValidationAlert');
+    const messageSpan = document.getElementById('emailValidationMessage');
+    if (alert && messageSpan) {
+        messageSpan.textContent = message;
+        alert.style.display = 'block';
+    }
+}
+
+// Ocultar alerta de validación de email
+function hideEmailValidationAlert() {
+    const alert = document.getElementById('emailValidationAlert');
+    if (alert) {
+        alert.style.display = 'none';
     }
 }
 

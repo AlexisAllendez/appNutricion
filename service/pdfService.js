@@ -66,15 +66,13 @@ class PDFService {
         
         doc.fontSize(14)
            .fillColor('#333')
-           .text(planData.plan_nombre || 'Plan Personalizado', { align: 'center' });
+           .text(planData.nombre || 'Plan Personalizado', { align: 'center' });
         
         doc.moveDown(2);
     }
 
     // Agregar información del paciente
     addPatientInfo(doc, planData) {
-        const paciente = planData.paciente;
-        
         doc.fontSize(12)
            .fillColor('#333')
            .text('INFORMACIÓN DEL PACIENTE', { underline: true });
@@ -82,10 +80,10 @@ class PDFService {
         doc.moveDown(0.5);
         
         const patientInfo = [
-            `Nombre: ${paciente.apellido_nombre || 'No especificado'}`,
-            `Email: ${paciente.email || 'No especificado'}`,
-            `Teléfono: ${paciente.telefono || 'No especificado'}`,
-            `Fecha de Nacimiento: ${paciente.fecha_nacimiento || 'No especificada'}`
+            `Nombre: ${planData.paciente_nombre || 'No especificado'}`,
+            `Email: ${planData.paciente_email || 'No especificado'}`,
+            `Teléfono: ${planData.paciente_telefono || 'No especificado'}`,
+            `Fecha de Nacimiento: ${planData.paciente_fecha_nacimiento || 'No especificada'}`
         ];
 
         patientInfo.forEach(info => {
@@ -104,12 +102,12 @@ class PDFService {
         doc.moveDown(0.5);
         
         const planInfo = [
-            `Tipo: ${planData.plan_tipo || 'No especificado'}`,
+            `Tipo: ${planData.tipo || 'No especificado'}`,
             `Objetivo: ${planData.objetivo || 'No especificado'}`,
             `Calorías Diarias: ${planData.calorias_diarias || 'No especificadas'}`,
-            `Fecha de Inicio: ${this.formatDate(planData.fecha_inicio)}`,
-            `Fecha de Fin: ${this.formatDate(planData.fecha_fin) || 'Sin fecha límite'}`,
-            `Fecha de Asignación: ${this.formatDate(planData.fecha_asignacion)}`
+            `Fecha de Creación: ${this.formatDate(planData.creado_en)}`,
+            `Fecha de Inicio: ${this.formatDate(planData.fecha_inicio) || 'No especificada'}`,
+            `Fecha de Fin: ${this.formatDate(planData.fecha_fin) || 'Sin fecha límite'}`
         ];
 
         planInfo.forEach(info => {

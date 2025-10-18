@@ -18,6 +18,7 @@ router.post('/profesional/:profesionalId/crear-plan', (req, res) => planAlimenta
 
 // Rutas para plan específico
 router.get('/plan/:planId', (req, res) => planAlimentacionController.getPlan(req, res));
+router.get('/plan/:planId/pacientes', (req, res) => planAlimentacionController.getPacientesAsignados(req, res));
 router.put('/plan/:planId', (req, res) => planAlimentacionController.updatePlan(req, res));
 router.delete('/plan/:planId', (req, res) => planAlimentacionController.deletePlan(req, res));
 
