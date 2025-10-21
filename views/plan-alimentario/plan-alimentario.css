@@ -753,3 +753,102 @@ body {
     }
 }
 
+/* ==================== ESTILOS PARA MODAL DE ELIMINACIÓN ==================== */
+
+/* Modal de eliminación */
+#modalEliminarPlan .modal-dialog {
+    max-width: 500px;
+}
+
+#modalEliminarPlan .modal-header {
+    background-color: #f8d7da;
+    border-bottom: 1px solid #f5c6cb;
+}
+
+#modalEliminarPlan .modal-title {
+    color: #721c24;
+    font-weight: 600;
+}
+
+#modalEliminarPlan .alert-danger {
+    border-left: 4px solid #dc3545;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+#modalEliminarPlan .alert-danger .alert-heading {
+    color: #721c24;
+    font-weight: 600;
+}
+
+/* Lista de elementos a eliminar */
+#modalEliminarPlan .list-unstyled li {
+    padding: 5px 0;
+    font-size: 14px;
+}
+
+#modalEliminarPlan .list-unstyled li i {
+    font-size: 12px;
+}
+
+/* Campo de confirmación */
+#modalEliminarPlan #confirmText {
+    border: 2px solid #dee2e6;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#modalEliminarPlan #confirmText:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+#modalEliminarPlan #confirmText:valid {
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+
+/* Botón de confirmación */
+#modalEliminarPlan #confirmDeleteBtn {
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+#modalEliminarPlan #confirmDeleteBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#modalEliminarPlan #confirmDeleteBtn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Alertas de validación */
+#modalEliminarPlan #deleteValidationAlert {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+#modalEliminarPlan #deleteValidationAlert .alert-heading {
+    color: #856404;
+}
+
+/* Responsive para modal de eliminación */
+@media (max-width: 576px) {
+    #modalEliminarPlan .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    #modalEliminarPlan .modal-body {
+        padding: 1rem;
+    }
+    
+    #modalEliminarPlan .modal-footer {
+        padding: 1rem;
+    }
+}
+

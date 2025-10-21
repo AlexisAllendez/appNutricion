@@ -1,6 +1,7 @@
 const { executeQuery } = require('../config/db');
 const { generateToken } = require('../middleware/auth');
 const Agenda = require('../models/agenda');
+const EmailService = require('../service/emailService');
 
 class ReservaController {
     // Crear nueva reserva de turno (para pacientes externos)
@@ -18,17 +19,7 @@ class ReservaController {
                 observaciones
             } = req.body;
 
-            console.log('📝 Datos recibidos para crear reserva:', {
-                nombre,
-                apellido,
-                telefono,
-                email,
-                fecha,
-                hora,
-                tipo_consulta,
-                motivo_consulta,
-                observaciones
-            });
+            console.log('📝 Creando reserva para:', `${nombre} ${apellido} - ${fecha} ${hora}`);
 
             // Validaciones básicas
             if (!nombre || !apellido || !telefono || !email || !fecha || !hora || !tipo_consulta) {
@@ -92,6 +83,16 @@ class ReservaController {
             // Generar código de cancelación único
             const codigo_cancelacion = ReservaController.generateCancellationCode();
 
+            // Mapear tipo_consulta a objetivo válido para la base de datos
+            const mapeoTipoConsulta = {
+                'primera_vez': 'salud',
+                'control': 'salud', 
+                'plan_alimentario': 'salud',
+                'consulta_urgente': 'salud'
+            };
+            
+            const objetivo = mapeoTipoConsulta[tipo_consulta] || 'otro';
+
             // Crear la reserva en la base de datos
             const query = `
                 INSERT INTO consultas (
@@ -116,7 +117,7 @@ class ReservaController {
                 fecha,
                 hora,
                 codigo_cancelacion,
-                tipo_consulta,
+                objetivo,
                 motivo_consulta || null,
                 observaciones || null,
                 `${nombre} ${apellido}`,
@@ -129,20 +130,38 @@ class ReservaController {
             const reservaId = result.insertId;
 
             console.log(`✅ Reserva ${reservaId} creada exitosamente`);
-            console.log(`📊 Variables para respuesta:`, {
-                nombre,
-                apellido,
-                tipo_consulta,
-                motivo_consulta,
-                observaciones,
-                fecha,
-                hora,
-                codigo_cancelacion
-            });
 
-            // 🔍 DETECCIÓN DE PACIENTE RECURRENTE POR TELÉFONO (DESPUÉS DE GUARDAR)
+            // Detectar paciente recurrente
             const deteccionPaciente = await ReservaController.detectarPacienteRecurrente(telefono);
-            console.log('📊 Detección de paciente:', deteccionPaciente);
+
+            // Enviar confirmación por email
+            try {
+                const emailService = new EmailService();
+                
+                const reservaData = {
+                    nombre,
+                    apellido,
+                    paciente: `${nombre} ${apellido}`,
+                    email,
+                    telefono,
+                    fecha,
+                    hora,
+                    tipo_consulta,
+                    motivo_consulta,
+                    observaciones,
+                    codigo_cancelacion
+                };
+
+                const emailResult = await emailService.sendReservaConfirmacion(reservaData, 'Dr. Alexis Allendez');
+                
+                if (emailResult.success) {
+                    console.log('✅ Email de confirmación enviado');
+                } else {
+                    console.log('⚠️ Error enviando email:', emailResult.message);
+                }
+            } catch (emailError) {
+                console.error('❌ Error enviando email:', emailError.message);
+            }
 
             // Respuesta exitosa
             res.status(201).json({
@@ -153,7 +172,8 @@ class ReservaController {
                     codigo_cancelacion,
                     fecha,
                     hora,
-                    tipo_consulta,
+                    tipo_consulta, // Mantener el tipo original del frontend
+                    objetivo, // Incluir el objetivo mapeado para la BD
                     motivo_consulta,
                     observaciones,
                     profesional: 'Dr. Alexis Allendez',
@@ -455,6 +475,13 @@ class ReservaController {
                 message: 'Error interno del servidor'
             });
         }
+    }
+
+    // Generar código de cancelación único
+    static generateCancellationCode() {
+        // Generar código simple de 6 dígitos
+        const randomCode = Math.floor(100000 + Math.random() * 900000);
+        return randomCode.toString();
     }
 }
 

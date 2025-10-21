@@ -111,6 +111,12 @@
                                     <span>Registro de Comidas</span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#asistencia" id="asistenciaLink">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Gestión de Asistencia</span>
+                                </a>
+                            </li>
                         </ul>
                     </nav>
                     
@@ -653,6 +659,173 @@
                                     <div class="text-center p-4">
                                         <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
                                         <p class="text-muted mb-0">Cargando registros de comidas...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gestión de Asistencia Section -->
+                    <div id="asistencia-section" class="content-section">
+                        <div class="section-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h2 class="section-title">
+                                        <i class="fas fa-check-circle me-2 text-success"></i>
+                                        Gestión de Asistencia
+                                    </h2>
+                                    <p class="section-subtitle">Confirmar asistencia de pacientes a consultas</p>
+                                </div>
+                                <div class="btn-group">
+                                    <button class="btn btn-primary" onclick="window.open('../../asistencia/', '_blank')">
+                                        <i class="fas fa-external-link-alt me-2"></i>Abrir en Nueva Pestaña
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estadísticas de Asistencia -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card text-white bg-primary">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h4 class="card-title" id="asistenciaTotalConsultas">0</h4>
+                                                <p class="card-text">Total Consultas</p>
+                                            </div>
+                                            <div class="align-self-center">
+                                                <i class="fas fa-calendar-check fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-white bg-success">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h4 class="card-title" id="asistenciaAsistieron">0</h4>
+                                                <p class="card-text">Asistieron</p>
+                                            </div>
+                                            <div class="align-self-center">
+                                                <i class="fas fa-user-check fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-white bg-warning">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h4 class="card-title" id="asistenciaNoAsistieron">0</h4>
+                                                <p class="card-text">No Asistieron</p>
+                                            </div>
+                                            <div class="align-self-center">
+                                                <i class="fas fa-user-times fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-white bg-info">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <h4 class="card-title" id="asistenciaPendientes">0</h4>
+                                                <p class="card-text">Pendientes</p>
+                                            </div>
+                                            <div class="align-self-center">
+                                                <i class="fas fa-clock fa-2x"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información del Sistema -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-info-circle me-2 text-info"></i>
+                                    Información del Sistema de Asistencia
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary">
+                                            <i class="fas fa-robot me-2"></i>
+                                            Procesamiento Automático
+                                        </h6>
+                                        <p class="text-muted small">
+                                            El sistema procesa automáticamente las consultas pasadas todos los días a las 23:50, 
+                                            marcándolas como "ausentes" por defecto para que puedas confirmar la asistencia real.
+                                        </p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-success">
+                                            <i class="fas fa-user-md me-2"></i>
+                                            Confirmación Manual
+                                        </h6>
+                                        <p class="text-muted small">
+                                            Puedes modificar el estado de cualquier consulta y agregar notas adicionales 
+                                            sobre la asistencia del paciente.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                                            <i class="fas fa-lightbulb me-2"></i>
+                                            <div>
+                                                <strong>Tip:</strong> Usa la sección dedicada de "Gestión de Asistencia" para una experiencia completa 
+                                                con filtros avanzados y mejor organización de las consultas.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Acceso Rápido -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-rocket me-2"></i>
+                                    Acceso Rápido
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="d-grid">
+                                            <button class="btn btn-outline-primary" onclick="window.open('../../asistencia/', '_blank')">
+                                                <i class="fas fa-check-circle me-2"></i>
+                                                Ver Consultas Pendientes
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="d-grid">
+                                            <button class="btn btn-outline-success" onclick="loadAsistenciaStats()">
+                                                <i class="fas fa-chart-bar me-2"></i>
+                                                Actualizar Estadísticas
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="d-grid">
+                                            <button class="btn btn-outline-info" onclick="showAsistenciaHelp()">
+                                                <i class="fas fa-question-circle me-2"></i>
+                                                Ayuda
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

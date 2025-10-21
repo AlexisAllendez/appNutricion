@@ -78,9 +78,9 @@ class EmailService {
                 throw new Error('Email service not initialized');
             }
 
-            console.log('🔧 Generando HTML del plan...');
-            const htmlContent = this.generatePlanHTML(planData, profesionalNombre, options.message);
-            console.log('✅ HTML generado correctamente');
+            console.log('🔧 Generando mensaje del email...');
+            const htmlContent = this.generateEmailMessage(planData, profesionalNombre, options.message);
+            console.log('✅ Mensaje del email generado correctamente');
 
             console.log('📄 Generando PDF del plan...');
             const pdfService = require('./pdfService');
@@ -139,7 +139,201 @@ class EmailService {
         }
     }
 
-    // Generar HTML para el plan alimentario
+    // Generar mensaje cordial del email con enfoque en el PDF adjunto
+    generateEmailMessage(planData, profesionalNombre, mensajePersonalizado = '') {
+        const fechaActual = new Date().toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        let html = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Plan Alimentario</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f8f9fa;
+                }
+                .container {
+                    background-color: #ffffff;
+                    border-radius: 10px;
+                    padding: 40px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #007bff;
+                }
+                .header h1 {
+                    color: #007bff;
+                    margin: 0;
+                    font-size: 28px;
+                }
+                .content {
+                    margin-bottom: 30px;
+                }
+                .greeting {
+                    font-size: 18px;
+                    margin-bottom: 25px;
+                    color: #333;
+                }
+                .pdf-notice {
+                    background-color: #e3f2fd;
+                    border: 1px solid #2196f3;
+                    border-radius: 8px;
+                    padding: 25px;
+                    margin: 25px 0;
+                    text-align: center;
+                }
+                .pdf-notice h3 {
+                    color: #1976d2;
+                    margin-top: 0;
+                    margin-bottom: 15px;
+                    font-size: 20px;
+                }
+                .pdf-notice p {
+                    margin: 10px 0;
+                    font-size: 16px;
+                }
+                .pdf-icon {
+                    font-size: 48px;
+                    color: #d32f2f;
+                    margin-bottom: 15px;
+                }
+                .instructions {
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }
+                .instructions h4 {
+                    color: #856404;
+                    margin-top: 0;
+                    margin-bottom: 15px;
+                }
+                .instructions ul {
+                    margin: 0;
+                    padding-left: 20px;
+                }
+                .instructions li {
+                    margin-bottom: 8px;
+                    color: #856404;
+                }
+                .personal-message {
+                    background-color: #f0f8ff;
+                    border-left: 4px solid #007bff;
+                    padding: 20px;
+                    margin: 20px 0;
+                    border-radius: 5px;
+                }
+                .personal-message p {
+                    margin: 0;
+                    white-space: pre-line;
+                    color: #333;
+                    font-size: 16px;
+                }
+                .closing {
+                    margin-top: 25px;
+                    font-size: 16px;
+                    color: #333;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #dee2e6;
+                    color: #666;
+                    font-size: 14px;
+                }
+                .contact-info {
+                    margin-top: 15px;
+                    padding-top: 15px;
+                    border-top: 1px solid #e9ecef;
+                }
+                .contact-info p {
+                    margin: 5px 0;
+                    font-size: 14px;
+                }
+                @media (max-width: 600px) {
+                    .container {
+                        padding: 25px;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🍎 Plan Alimentario</h1>
+                    <p>Sistema de Gestión Nutricional</p>
+                </div>
+
+                <div class="content">
+                    <div class="greeting">
+                        <p>¡Hola!</p>
+                        <p>Espero que te encuentres muy bien. Te escribo para compartir contigo tu <strong>Plan Alimentario Personalizado</strong>.</p>
+                    </div>
+
+                    <div class="pdf-notice">
+                        <div class="pdf-icon">📄</div>
+                        <h3>¡Tu Plan Completo está Listo!</h3>
+                        <p><strong>Se adjunta a este correo tu Plan Alimentario completo en formato PDF</strong></p>
+                        <p>Este documento contiene toda la información detallada de tu plan nutricional.</p>
+                    </div>
+
+                    <div class="instructions">
+                        <h4>📥 Cómo Descargar tu Plan</h4>
+                        <ul>
+                            <li>Busca el archivo adjunto en este correo</li>
+                            <li>El archivo se llama: <strong>Plan_Alimentario_${planData.nombre.replace(/[^a-zA-Z0-9]/g, '_')}.pdf</strong></li>
+                            <li>Haz clic en el archivo para descargarlo</li>
+                            <li>Guárdalo en tu dispositivo para consultarlo cuando necesites</li>
+                            <li>Puedes imprimirlo si lo prefieres</li>
+                        </ul>
+                    </div>
+
+                    ${mensajePersonalizado ? `
+                    <div class="personal-message">
+                        <p>${mensajePersonalizado}</p>
+                    </div>
+                    ` : ''}
+
+                    <div class="closing">
+                        <p>Si tienes alguna pregunta sobre tu plan alimentario o necesitas hacer algún ajuste, no dudes en contactarme.</p>
+                        <p>¡Espero que disfrutes de tu nuevo plan y que te ayude a alcanzar tus objetivos de salud!</p>
+                        <p>¡Que tengas un excelente día!</p>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p><strong>Profesional:</strong> ${profesionalNombre}</p>
+                    <div class="contact-info">
+                        <p>📧 Este correo fue enviado automáticamente por el Sistema de Gestión Nutricional</p>
+                        <p>📅 Fecha de envío: ${fechaActual}</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        return html;
+    }
+
+    // Generar HTML para el plan alimentario (método anterior - mantenido por compatibilidad)
     generatePlanHTML(planData, profesionalNombre, mensajePersonalizado = '') {
         const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         const tiposComida = ['desayuno', 'media_manana', 'almuerzo', 'media_tarde', 'cena', 'colacion'];
@@ -465,6 +659,313 @@ class EmailService {
                 message: 'Error enviando email de prueba'
             };
         }
+    }
+
+    // Enviar confirmación de reserva por email
+    async sendReservaConfirmacion(reservaData, profesionalNombre) {
+        try {
+            console.log('📧 Enviando confirmación de reserva...');
+
+            if (!this.transporter) {
+                throw new Error('Email service not initialized');
+            }
+
+            const htmlContent = this.generateReservaConfirmacionHTML(reservaData, profesionalNombre);
+
+            const mailOptions = {
+                from: {
+                    name: 'Sistema de Nutrición',
+                    address: process.env.SMTP_USER
+                },
+                to: reservaData.email,
+                subject: `Confirmación de Reserva - ${reservaData.fecha}`,
+                html: htmlContent
+            };
+
+            const result = await this.transporter.sendMail(mailOptions);
+            console.log('✅ Confirmación enviada:', result.messageId);
+            
+            return {
+                success: true,
+                messageId: result.messageId,
+                message: 'Confirmación de reserva enviada exitosamente'
+            };
+
+        } catch (error) {
+            console.error('❌ Error enviando confirmación:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                message: 'Error enviando la confirmación de reserva'
+            };
+        }
+    }
+
+    // Generar HTML para confirmación de reserva
+    generateReservaConfirmacionHTML(reservaData, profesionalNombre) {
+        const fechaFormateada = new Date(reservaData.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        const horaFormateada = reservaData.hora.substring(0, 5); // Formato HH:MM
+
+        // Mapear tipo de consulta a texto legible
+        const tiposConsulta = {
+            'primera_vez': 'Primera consulta',
+            'control': 'Control de seguimiento',
+            'plan_alimentario': 'Nuevo plan alimentario',
+            'consulta_urgente': 'Consulta de urgencia'
+        };
+
+        const tipoConsultaTexto = tiposConsulta[reservaData.tipo_consulta] || reservaData.tipo_consulta;
+
+        let html = `
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Confirmación de Reserva</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f8f9fa;
+                }
+                .container {
+                    background-color: #ffffff;
+                    border-radius: 10px;
+                    padding: 40px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #28a745;
+                }
+                .header h1 {
+                    color: #28a745;
+                    margin: 0;
+                    font-size: 28px;
+                }
+                .header p {
+                    color: #666;
+                    margin: 10px 0 0 0;
+                    font-size: 16px;
+                }
+                .content {
+                    margin-bottom: 30px;
+                }
+                .greeting {
+                    font-size: 18px;
+                    margin-bottom: 25px;
+                    color: #333;
+                }
+                .reserva-info {
+                    background-color: #d4edda;
+                    border: 1px solid #c3e6cb;
+                    border-radius: 8px;
+                    padding: 25px;
+                    margin: 25px 0;
+                }
+                .reserva-info h3 {
+                    color: #155724;
+                    margin-top: 0;
+                    margin-bottom: 20px;
+                    font-size: 20px;
+                }
+                .info-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                    margin-bottom: 20px;
+                }
+                .info-item {
+                    padding: 10px 0;
+                }
+                .info-item strong {
+                    color: #155724;
+                    display: block;
+                    margin-bottom: 5px;
+                }
+                .info-item span {
+                    color: #333;
+                    font-size: 16px;
+                }
+                .codigo-cancelacion {
+                    background-color: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    text-align: center;
+                }
+                .codigo-cancelacion h4 {
+                    color: #856404;
+                    margin-top: 0;
+                    margin-bottom: 15px;
+                }
+                .codigo-value {
+                    font-family: 'Courier New', monospace;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #856404;
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 5px;
+                    border: 2px dashed #856404;
+                    letter-spacing: 2px;
+                }
+                .instructions {
+                    background-color: #e3f2fd;
+                    border: 1px solid #2196f3;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                }
+                .instructions h4 {
+                    color: #1976d2;
+                    margin-top: 0;
+                    margin-bottom: 15px;
+                }
+                .instructions ul {
+                    margin: 0;
+                    padding-left: 20px;
+                }
+                .instructions li {
+                    margin-bottom: 8px;
+                    color: #1976d2;
+                }
+                .contact-info {
+                    background-color: #f8f9fa;
+                    border-left: 4px solid #28a745;
+                    padding: 20px;
+                    margin: 20px 0;
+                    border-radius: 5px;
+                }
+                .contact-info h4 {
+                    color: #28a745;
+                    margin-top: 0;
+                    margin-bottom: 15px;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 30px;
+                    padding-top: 20px;
+                    border-top: 1px solid #dee2e6;
+                    color: #666;
+                    font-size: 14px;
+                }
+                @media (max-width: 600px) {
+                    .info-grid {
+                        grid-template-columns: 1fr;
+                    }
+                    .container {
+                        padding: 25px;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>✅ Reserva Confirmada</h1>
+                    <p>Sistema de Gestión Nutricional</p>
+                </div>
+
+                <div class="content">
+                    <div class="greeting">
+                        <p>¡Hola ${reservaData.nombre}!</p>
+                        <p>Tu reserva ha sido confirmada exitosamente. Te esperamos en la consulta.</p>
+                    </div>
+
+                    <div class="reserva-info">
+                        <h3>📅 Detalles de tu Consulta</h3>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Fecha:</strong>
+                                <span>${fechaFormateada}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Hora:</strong>
+                                <span>${horaFormateada}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Tipo de Consulta:</strong>
+                                <span>${tipoConsultaTexto}</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Profesional:</strong>
+                                <span>${profesionalNombre}</span>
+                            </div>
+                        </div>
+                        ${reservaData.motivo_consulta ? `
+                        <div class="info-item">
+                            <strong>Motivo de Consulta:</strong>
+                            <span>${reservaData.motivo_consulta}</span>
+                        </div>
+                        ` : ''}
+                        ${reservaData.observaciones ? `
+                        <div class="info-item">
+                            <strong>Observaciones:</strong>
+                            <span>${reservaData.observaciones}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                <div class="codigo-cancelacion">
+                    <h4>🔑 Código de Cancelación</h4>
+                    <p>Si necesitas cancelar tu consulta, utiliza este código:</p>
+                    <div class="codigo-value">${reservaData.codigo_cancelacion}</div>
+                    <p style="margin-top: 15px; font-size: 14px; color: #856404;">
+                        <i class="fas fa-info-circle"></i>
+                        Código simple de 6 dígitos - fácil de recordar
+                    </p>
+                </div>
+
+                    <div class="instructions">
+                        <h4>📋 Instrucciones Importantes</h4>
+                        <ul>
+                            <li>Llega 10 minutos antes de tu horario</li>
+                            <li>Trae tu documento de identidad</li>
+                            <li>Si tienes estudios médicos recientes, tráelos</li>
+                            <li>En caso de cancelación, usa el código proporcionado</li>
+                            <li>Para reprogramar, contacta directamente al profesional</li>
+                        </ul>
+                    </div>
+
+                    <div class="contact-info">
+                        <h4>📞 Información de Contacto</h4>
+                        <p><strong>Profesional:</strong> ${profesionalNombre}</p>
+                        <p><strong>Email:</strong> Este correo fue enviado automáticamente por el Sistema de Gestión Nutricional</p>
+                        <p><strong>Fecha de envío:</strong> ${new Date().toLocaleDateString('es-ES')}</p>
+                    </div>
+
+                    <div class="content">
+                        <p>¡Esperamos verte pronto y ayudarte a alcanzar tus objetivos de salud!</p>
+                        <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+                        <p>¡Que tengas un excelente día!</p>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p>Este correo fue enviado automáticamente por el Sistema de Gestión Nutricional</p>
+                    <p>Por favor, no respondas a este correo</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        `;
+
+        return html;
     }
 }
 

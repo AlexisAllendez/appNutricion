@@ -32,10 +32,12 @@ const editPatientRoutes = require('./routes/editPatientRoutes');
 
 // Importar scheduler de limpieza de imágenes
 const agendaRoutes = require('./routes/agendaRoutes');
+const taskScheduler = require('./service/taskScheduler');
 const evolucionMedicaRoutes = require('./routes/evolucionMedicaRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
 const antropometriaRoutes = require('./routes/antropometriaRoutes');
 const emailRoutes = require('./routes/emailRoutes');
+const asistenciaRoutes = require('./routes/asistenciaRoutes');
 
 // Importar middlewares
 const errorHandler = require('./middleware/errorHandler');
@@ -100,6 +102,7 @@ app.use('/api/reportes', reporteRoutes);
 app.use('/api/reservas', require('./routes/reservaRoutes'));
 app.use('/api/registro-comidas', require('./routes/registroComidasRoutes'));
 app.use('/api/email', emailRoutes);
+app.use('/api/asistencia', asistenciaRoutes);
 app.use('/api', registrationKeyRoutes);
 
 // Ruta de prueba de conexión
@@ -145,6 +148,11 @@ app.get('/login', (req, res) => {
 // Ruta de dashboard profesional
 app.get('/dashboard/professional', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard', 'professional', 'index.html'));
+});
+
+// Ruta de gestión de asistencia
+app.get('/asistencia', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'asistencia', 'index.html'));
 });
 
 // Ruta de agenda
@@ -245,13 +253,18 @@ const startServer = async () => {
 };
 
 // Manejo de señales de terminación
+// Inicializar TaskScheduler
+taskScheduler.init();
+
 process.on('SIGTERM', () => {
     console.log('🔄 Recibida señal SIGTERM, cerrando servidor...');
+    taskScheduler.stop();
     process.exit(0);
 });
 
 process.on('SIGINT', () => {
     console.log('🔄 Recibida señal SIGINT, cerrando servidor...');
+    taskScheduler.stop();
     process.exit(0);
 });
 

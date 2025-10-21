@@ -301,6 +301,9 @@ function loadSectionContent(sectionName) {
         case 'registro-comidas':
             loadRegistroComidasContent();
             break;
+        case 'asistencia':
+            loadAsistenciaContent();
+            break;
     }
 }
 
@@ -2399,6 +2402,15 @@ function setupEventListeners() {
         registroComidasLink.addEventListener('click', function(e) {
             e.preventDefault();
             showSection('registro-comidas');
+        });
+    }
+    
+    // Gestión de Asistencia button
+    const asistenciaLink = document.getElementById('asistenciaLink');
+    if (asistenciaLink) {
+        asistenciaLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            showSection('asistencia');
         });
     }
     
@@ -5148,4 +5160,23 @@ window.toggleVistaPlanes = toggleVistaPlanes;
 window.cambiarPaginaPlanes = cambiarPaginaPlanes;
 window.verDetallesPlan = verDetallesPlan;
 window.editarComidasPlan = editarComidasPlan;
+
+// ==================== GESTIÓN DE ASISTENCIA ====================
+
+// Función simplificada para redirigir a la página de gestión de asistencia
+function loadAsistenciaContent() {
+    console.log('📋 Redirigiendo a gestión de asistencia...');
+    window.location.href = '/asistencia';
+}
+
+// Funciones eliminadas - ahora se manejan en la página dedicada de asistencia
+
+// Show asistencia help
+// Función de ayuda simplificada
+function showAsistenciaHelp() {
+    alert('Para una experiencia completa de gestión de asistencia, utiliza la página dedicada que se abrirá al hacer clic en "Gestión de Asistencia".');
+}
+
+// Exportar funciones globales
+window.showAsistenciaHelp = showAsistenciaHelp;
 
