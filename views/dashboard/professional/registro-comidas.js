@@ -75,7 +75,15 @@ class RegistroComidasManager {
 
     async cargarPacientes() {
         try {
-            const response = await fetch('/api/pacientes', {
+            // Obtener el ID del profesional del localStorage
+            const userData = localStorage.getItem('user');
+            if (!userData) {
+                console.error('No se encontraron datos de usuario');
+                return;
+            }
+            
+            const user = JSON.parse(userData);
+            const response = await fetch(`/api/usuarios/profesional/${user.id}/pacientes`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -85,6 +93,8 @@ class RegistroComidasManager {
                 const data = await response.json();
                 this.pacientes = data.data || [];
                 this.actualizarSelectPacientes();
+            } else {
+                console.error('Error en la respuesta:', response.status);
             }
         } catch (error) {
             console.error('Error cargando pacientes:', error);

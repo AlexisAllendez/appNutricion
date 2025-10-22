@@ -1,12 +1,18 @@
 // Professional Dashboard JavaScript
 
-// Variables globales para caché local
+// Variables globales para caché local y paginación
 let pacientesCache = null;
 let lastCacheUpdate = null;
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutos
 
 // Variable global para almacenar datos de pacientes actuales
 let pacientesData = [];
+
+// Variables de paginación
+let currentPage = 1;
+let itemsPerPage = 10;
+let totalPages = 1;
+let totalItems = 0;
 
 // Función para verificar si el caché local es válido
 function isLocalCacheValid() {
@@ -349,8 +355,7 @@ async function loadPacientesContent() {
         console.log('User ID:', user.id, 'Token exists:', !!token);
         
         // Obtener pacientes desde la API (forzar actualización)
-        console.log('Making API request to:', `/api/usuarios/profesional/${user.id}/pacientes`);
-        const response = await fetch(`/api/usuarios/profesional/${user.id}/pacientes?forceRefresh=true`, {
+        const response = await fetch(`/api/usuarios/profesional/${user.id}/pacientes?forceRefresh=true&page=${currentPage}&limit=${itemsPerPage}`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -366,11 +371,23 @@ async function loadPacientesContent() {
         }
         
         const result = await response.json();
-        console.log('API Result:', result);
         const pacientes = result.data;
         
-        // Actualizar variable global
+        // Actualizar variables globales
         pacientesData = pacientes;
+        
+        // Actualizar información de paginación
+        if (result.pagination) {
+            currentPage = result.pagination.currentPage;
+            totalPages = result.pagination.totalPages;
+            totalItems = result.pagination.totalItems;
+            // itemsPerPage siempre será 10 (fijo)
+        } else {
+            console.log('⚠️  No se recibió información de paginación de la API');
+            console.log('🔧 Usando valores por defecto para paginación');
+            totalItems = pacientes ? pacientes.length : 0;
+            totalPages = Math.ceil(totalItems / itemsPerPage);
+        }
         
         // Usar las estadísticas de la API si están disponibles, sino calcularlas
         const stats = result.stats ? {
@@ -398,210 +415,8 @@ async function loadPacientesContent() {
         lastCacheUpdate = Date.now();
         console.log('💾 Local cache updated');
         
-        // Renderizar contenido dinámico
-        section.innerHTML = `
-        <div class="section-header">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <h2 class="section-title">Mis Pacientes</h2>
-                    <p class="section-subtitle">Gestión completa de pacientes activos</p>
-                </div>
-                <div class="col-md-6 text-end">
-                    <button class="btn btn-primary" id="newPatientBtn">
-                        <i class="fas fa-plus me-2"></i>Nuevo Paciente
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Search and Filters -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="patientSearch" placeholder="Buscar pacientes...">
-                    <button class="btn btn-outline-secondary" type="button" id="searchBtn">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select" id="statusFilter">
-                    <option value="">Todos los estados</option>
-                    <option value="activo">Activo</option>
-                    <option value="inactivo">Inactivo</option>
-                    <option value="pendiente">Pendiente</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select" id="sortBy">
-                    <option value="name">Ordenar por nombre</option>
-                    <option value="lastConsultation">Última consulta</option>
-                    <option value="weight">Peso</option>
-                    <option value="created">Fecha de ingreso</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" id="exportBtn">
-                    <i class="fas fa-download me-1"></i>Exportar
-                </button>
-            </div>
-            <div class="col-md-2">
-                <button class="btn btn-outline-warning w-100" id="resetFiltersBtn">
-                    <i class="fas fa-undo me-1"></i>Restablecer
-                </button>
-            </div>
-        </div>
-
-        <!-- Patients Stats -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>Total Pacientes</h3>
-                        <p id="totalPatientsCount">${stats.total_pacientes || 0}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-user-check"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>Pacientes Activos</h3>
-                        <p id="activePatientsCount">${stats.pacientes_activos || 0}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>Consultas Pendientes</h3>
-                        <p id="pendingConsultationsCount">${stats.consultas_pendientes || 0}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-calendar-check"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3>Con Consultas</h3>
-                        <p id="upcomingAppointmentsCount">${stats.con_consultas || 0}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Patients Table -->
-        <div class="card">
-            <div class="card-body">
-            <div class="table-responsive">
-                    <table class="table table-hover" id="patientsTable">
-                    <thead>
-                        <tr>
-                                <th>Paciente</th>
-                                <th>Contacto</th>
-                            <th>Última Consulta</th>
-                                <th>Peso Actual</th>
-                            <th>Estado</th>
-                            <th>Cuenta</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                        <tbody id="patientsTableBody">
-                            ${pacientes && pacientes.length > 0 ? pacientes.map(paciente => `
-                                <tr>
-                                    <td>
-                                        <div class="patient-info">
-                                            <div class="patient-avatar-small">
-                                                <i class="fas fa-user"></i>
-                                            </div>
-                                            <div class="patient-details">
-                                                <strong>${paciente.apellido_nombre}</strong>
-                                                <small class="text-muted d-block">DNI: ${paciente.numero_documento}</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="contact-info">
-                                            <small class="text-muted d-block">${paciente.email}</small>
-                                            <small class="text-muted">${paciente.telefono || 'No especificado'}</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="consultation-date">${paciente.ultima_consulta ? new Date(paciente.ultima_consulta).toLocaleDateString() : 'Sin consultas'}</span>
-                                        <small class="text-muted d-block">${paciente.total_consultas || 0} consultas</small>
-                                    </td>
-                                    <td>
-                                        <span class="weight-value">${paciente.peso_actual ? paciente.peso_actual + ' kg' : 'No registrado'}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge ${paciente.activo ? 'bg-success' : 'bg-danger'}">${paciente.activo ? 'Activo' : 'Inactivo'}</span>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            <div class="d-flex align-items-center mb-1">
-                                                <span class="badge ${paciente.tiene_cuenta ? 'bg-success' : 'bg-warning'} me-2">
-                                                    <i class="fas fa-${paciente.tiene_cuenta ? 'check-circle' : 'exclamation-triangle'} me-1"></i>
-                                                    ${paciente.tiene_cuenta ? 'SÍ' : 'NO'}
-                                                </span>
-                                                <button class="btn btn-sm btn-outline-info" onclick="showPatientAccountInfo(${paciente.id})" title="Ver información de cuenta">
-                                                    <i class="fas fa-user-circle"></i>
-                                                </button>
-                                            </div>
-                                            ${paciente.tiene_cuenta ? `
-                                                <small class="text-muted">
-                                                    <i class="fas fa-user me-1"></i>Usuario: <strong>${paciente.usuario || 'No especificado'}</strong>
-                                                </small>
-                                            ` : `
-                                                <small class="text-muted">
-                                                    <i class="fas fa-info-circle me-1"></i>Sin acceso al sistema
-                                                </small>
-                                            `}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            <button class="btn btn-sm btn-outline-primary" data-patient-id="${paciente.id}" data-action="view-history" title="Ver Historia Clínica">
-                                                <i class="fas fa-file-medical"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-secondary" data-patient-id="${paciente.id}" data-action="edit" title="Editar Paciente">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-success" data-patient-id="${paciente.id}" data-action="new-consultation" title="Nueva Consulta">
-                                                <i class="fas fa-plus"></i>
-                                            </button>
-                                        </div>
-                            </td>
-                        </tr>
-                            `).join('') : `
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        <i class="fas fa-users fa-2x mb-3"></i>
-                                        <p>No hay pacientes registrados</p>
-                                        <button class="btn btn-primary" onclick="goToNewPatient()">
-                                            <i class="fas fa-plus me-2"></i>Agregar Primer Paciente
-                                        </button>
-                                    </td>
-                                </tr>
-                            `}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Agregar event listeners después de renderizar el HTML
-    setupSearchEventListeners();
+        // Renderizar contenido usando la función unificada
+        renderSearchResults(pacientes, stats, '', result.pagination);
     
     } catch (error) {
         console.error('Error cargando pacientes:', error);
@@ -615,6 +430,9 @@ async function loadPacientesContent() {
                 </button>
             </div>
         `;
+        
+        // Reconfigurar event listeners después del error
+        setupSearchEventListeners();
     }
 }
 
@@ -726,8 +544,35 @@ async function searchPatients() {
     }
 }
 
-function renderSearchResults(pacientes, stats, searchTerm) {
+function renderSearchResults(pacientes, stats, searchTerm, pagination = null) {
     const section = document.getElementById('pacientes-section');
+    
+    // Usar parámetros de paginación si están disponibles, sino usar variables globales
+    const paginationData = pagination || {
+        currentPage: currentPage,
+        totalPages: totalPages,
+        totalItems: totalItems,
+        itemsPerPage: itemsPerPage
+    };
+    
+    // ACTUALIZAR VARIABLES GLOBALES SI SE RECIBE PAGINACIÓN
+    if (pagination) {
+        currentPage = pagination.currentPage || 1;
+        totalPages = pagination.totalPages || 1;
+        totalItems = pagination.totalItems || 0;
+        // itemsPerPage siempre será 10 (fijo)
+    }
+    
+    // Verificar si hay datos de paginación válidos
+    const hasValidPagination = paginationData.totalItems !== undefined && paginationData.totalItems !== null;
+    
+    if (hasValidPagination && paginationData.totalItems > 0) {
+        // Paginación válida
+    } else {
+        // FORZAR PAGINACIÓN CON DATOS DISPONIBLES
+        paginationData.totalItems = pacientes ? pacientes.length : 0;
+        paginationData.totalPages = Math.max(1, Math.ceil(paginationData.totalItems / paginationData.itemsPerPage));
+    }
     
     section.innerHTML = `
         <div class="section-header">
@@ -792,6 +637,7 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                     <div class="stat-content">
                         <h3>Total Pacientes</h3>
                         <p id="totalPatientsCount">${stats.total_pacientes || 0}</p>
+                        ${stats.filtrados ? `<small class="text-muted">${stats.filtrados.total_encontrados} encontrados</small>` : ''}
                     </div>
                 </div>
             </div>
@@ -803,6 +649,7 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                     <div class="stat-content">
                         <h3>Pacientes Activos</h3>
                         <p id="activePatientsCount">${stats.pacientes_activos || 0}</p>
+                        ${stats.filtrados ? `<small class="text-muted">${stats.filtrados.activos_encontrados} en resultados</small>` : ''}
                     </div>
                 </div>
             </div>
@@ -829,6 +676,26 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                 </div>
             </div>
         </div>
+        
+        <!-- Filter Status -->
+        ${stats.filtros_aplicados && (stats.filtros_aplicados.busqueda || stats.filtros_aplicados.estado) ? `
+        <div class="alert alert-info mb-4">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-filter me-2"></i>
+                <div>
+                    <strong>Filtros aplicados:</strong>
+                    ${stats.filtros_aplicados.busqueda ? `<span class="badge bg-primary me-2">Búsqueda: "${stats.filtros_aplicados.busqueda}"</span>` : ''}
+                    ${stats.filtros_aplicados.estado ? `<span class="badge bg-secondary me-2">Estado: ${stats.filtros_aplicados.estado}</span>` : ''}
+                    <span class="badge bg-light text-dark">Ordenamiento: ${stats.filtros_aplicados.ordenamiento}</span>
+                </div>
+                <div class="ms-auto">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
+                        <i class="fas fa-times me-1"></i>Limpiar filtros
+                    </button>
+                </div>
+            </div>
+        </div>
+        ` : ''}
 
         <!-- Patients Table -->
         <div class="card">
@@ -870,7 +737,7 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                                         <small class="text-muted d-block">${paciente.total_consultas || 0} consultas</small>
                                     </td>
                                     <td>
-                                        <span class="weight-value">No registrado</span>
+                                        <span class="weight-value">${paciente.peso_actual ? paciente.peso_actual + ' kg' : 'No registrado'}</span>
                                     </td>
                                     <td>
                                         <span class="badge ${paciente.activo ? 'bg-success' : 'bg-danger'}">${paciente.activo ? 'Activo' : 'Inactivo'}</span>
@@ -909,6 +776,43 @@ function renderSearchResults(pacientes, stats, searchTerm) {
                     </tbody>
                 </table>
                 </div>
+                
+                <!-- Paginación -->
+                ${paginationData.totalItems > 0 ? `
+                    <div class="card-footer">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <span class="text-muted me-3">
+                                        Mostrando ${((paginationData.currentPage - 1) * paginationData.itemsPerPage) + 1} a ${Math.min(paginationData.currentPage * paginationData.itemsPerPage, paginationData.totalItems)} de ${paginationData.totalItems} pacientes
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <nav aria-label="Paginación de pacientes">
+                                    <ul class="pagination pagination-sm justify-content-end mb-0">
+                                        <!-- Botón Anterior -->
+                                        <li class="page-item ${paginationData.currentPage === 1 ? 'disabled' : ''}">
+                                            <button class="page-link" onclick="changePage(${paginationData.currentPage - 1})" ${paginationData.currentPage === 1 ? 'disabled' : ''}>
+                                                <i class="fas fa-chevron-left"></i>
+                                            </button>
+                                        </li>
+                                        
+                                        <!-- Páginas -->
+                                        ${generatePaginationButtons(paginationData)}
+                                        
+                                        <!-- Botón Siguiente -->
+                                        <li class="page-item ${paginationData.currentPage === paginationData.totalPages ? 'disabled' : ''}">
+                                            <button class="page-link" onclick="changePage(${paginationData.currentPage + 1})" ${paginationData.currentPage === paginationData.totalPages ? 'disabled' : ''}>
+                                                <i class="fas fa-chevron-right"></i>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -1303,6 +1207,22 @@ function loadAgendaContent() {
 
     cardBody.innerHTML = `
         <div class="agenda-dashboard-content">
+            <!-- Botón para ir a la gestión de consultas -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>Vista Rápida de Agenda
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <a href="/gestion-consultas" class="btn btn-primary">
+                                <i class="fas fa-cogs me-2"></i>Gestión de Consultas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Estadísticas rápidas -->
             <div class="row mb-4">
                 <div class="col-12">
@@ -5179,4 +5099,74 @@ function showAsistenciaHelp() {
 
 // Exportar funciones globales
 window.showAsistenciaHelp = showAsistenciaHelp;
+
+// ==================== FUNCIONES DE PAGINACIÓN ====================
+
+// Generar botones de paginación
+function generatePaginationButtons(paginationData = null) {
+    // Usar parámetros de paginación si están disponibles, sino usar variables globales
+    const pagination = paginationData || {
+        currentPage: currentPage,
+        totalPages: totalPages
+    };
+    
+    let buttons = '';
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+    
+    // Ajustar startPage si estamos cerca del final
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    // Botón primera página si no está visible
+    if (startPage > 1) {
+        buttons += `
+            <li class="page-item">
+                <button class="page-link" onclick="changePage(1)">1</button>
+            </li>
+        `;
+        if (startPage > 2) {
+            buttons += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    // Botones de páginas visibles
+    for (let i = startPage; i <= endPage; i++) {
+        buttons += `
+            <li class="page-item ${i === pagination.currentPage ? 'active' : ''}">
+                <button class="page-link" onclick="changePage(${i})">${i}</button>
+            </li>
+        `;
+    }
+    
+    // Botón última página si no está visible
+    if (endPage < pagination.totalPages) {
+        if (endPage < pagination.totalPages - 1) {
+            buttons += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        buttons += `
+            <li class="page-item">
+                <button class="page-link" onclick="changePage(${pagination.totalPages})">${pagination.totalPages}</button>
+            </li>
+        `;
+    }
+    
+    return buttons;
+}
+
+// Cambiar página
+async function changePage(newPage) {
+    if (newPage < 1 || newPage > totalPages || newPage === currentPage) {
+        return;
+    }
+    
+    currentPage = newPage;
+    await loadPacientesContent();
+}
+
+// Exportar funciones de paginación
+window.changePage = changePage;
+window.generatePaginationButtons = generatePaginationButtons;
 

@@ -9,7 +9,7 @@ class PacienteService {
 
     // Obtener pacientes con caché inteligente
     async getPacientesByProfesional(profesionalId, options = {}) {
-        const { search, status, sortBy, forceRefresh = false } = options;
+        const { search, status, sortBy, forceRefresh = false, page = 1, limit = 10 } = options;
         
         // Crear clave de caché única
         const cacheKey = `${this.cachePrefix}_${profesionalId}_${search || 'all'}_${status || 'all'}_${sortBy || 'name'}`;
@@ -26,9 +26,11 @@ class PacienteService {
         // Construir consulta optimizada
         let query = `
             SELECT u.*, 
-                   COUNT(c.id) as total_consultas,
-                   MAX(c.fecha) as ultima_consulta,
-                   (SELECT peso FROM antropometria WHERE usuario_id = u.id ORDER BY fecha DESC LIMIT 1) as peso_actual,
+                   COUNT(CASE WHEN c.estado = 'completado' THEN c.id END) as total_consultas,
+                   MAX(CASE WHEN c.estado = 'completado' THEN c.fecha END) as ultima_consulta,
+                   (SELECT peso FROM antropometria 
+                    WHERE usuario_id = u.id 
+                    ORDER BY fecha DESC LIMIT 1) as peso_actual,
                    CASE 
                        WHEN u.usuario IS NOT NULL AND u.usuario != '' AND u.contrasena IS NOT NULL AND u.contrasena != '' 
                        AND u.usuario NOT LIKE 'temp_%' AND u.contrasena NOT LIKE 'temp_password_%'
@@ -81,18 +83,53 @@ class PacienteService {
                 query += ` ORDER BY u.apellido_nombre ASC`;
         }
         
-        // Ejecutar consulta
+        // Obtener total de registros para paginación (consulta simplificada)
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM usuarios u
+            WHERE u.profesional_id = ?
+            ${search ? `AND (
+                u.apellido_nombre LIKE ? OR 
+                u.numero_documento LIKE ? OR 
+                u.email LIKE ? OR 
+                u.telefono LIKE ?
+            )` : ''}
+        `;
+        
+        const countResult = await Usuario.executeQuery(countQuery, params);
+        const totalItems = countResult[0] ? countResult[0].total : 0;
+        
+        // Calcular paginación
+        const offset = (page - 1) * limit;
+        const totalPages = Math.ceil(totalItems / limit);
+        
+        // Agregar LIMIT y OFFSET a la consulta principal
+        query += ` LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+        
+        // Ejecutar consulta paginada
         const pacientes = await Usuario.executeQuery(query, params);
         
-        // Obtener estadísticas completas
+        // Obtener estadísticas completas (siempre los totales reales)
         const stats = await this.getPacientesStats(profesionalId);
         
-        // Si hay filtros, ajustar solo las estadísticas de pacientes
-        if (search || status) {
-            stats.total_pacientes = pacientes.length;
-            stats.pacientes_activos = pacientes.filter(p => p.activo).length;
-            stats.pacientes_inactivos = pacientes.filter(p => !p.activo).length;
-        }
+        // Agregar estadísticas específicas de filtros aplicados
+        const filteredStats = {
+            ...stats,
+            // Estadísticas de los resultados filtrados
+            filtrados: {
+                total_encontrados: totalItems,
+                activos_encontrados: pacientes.filter(p => p.activo).length,
+                inactivos_encontrados: pacientes.filter(p => !p.activo).length,
+                con_cuenta_encontrados: pacientes.filter(p => p.tiene_cuenta === 1).length,
+                sin_cuenta_encontrados: pacientes.filter(p => p.tiene_cuenta === 0).length
+            },
+            // Información sobre filtros aplicados
+            filtros_aplicados: {
+                busqueda: search || null,
+                estado: status || null,
+                ordenamiento: sortBy || 'name'
+            }
+        };
         
         // Preparar respuesta
         const result = {
@@ -112,7 +149,15 @@ class PacienteService {
                 tiene_cuenta: p.tiene_cuenta === 1,
                 usuario: p.usuario
             })),
-            stats: stats,
+            stats: filteredStats,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: totalPages,
+                totalItems: totalItems,
+                itemsPerPage: parseInt(limit),
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            },
             count: pacientes.length,
             cached: false,
             cacheKey: cacheKey
@@ -145,7 +190,7 @@ class PacienteService {
                 COUNT(CASE WHEN usuario IS NOT NULL AND usuario != '' AND contrasena IS NOT NULL AND contrasena != '' AND usuario NOT LIKE 'temp_%' AND contrasena NOT LIKE 'temp_password_%' THEN 1 END) as pacientes_con_cuenta,
                 COUNT(CASE WHEN usuario IS NULL OR usuario = '' OR contrasena IS NULL OR contrasena = '' OR usuario LIKE 'temp_%' OR contrasena LIKE 'temp_password_%' THEN 1 END) as pacientes_sin_cuenta
             FROM usuarios 
-            WHERE profesional_id = ? AND rol = 'paciente'
+            WHERE profesional_id = ?
         `;
         
         const [pacientesStats] = await Usuario.executeQuery(pacientesQuery, [profesionalId]);

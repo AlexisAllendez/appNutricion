@@ -38,6 +38,7 @@ const reporteRoutes = require('./routes/reporteRoutes');
 const antropometriaRoutes = require('./routes/antropometriaRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 const asistenciaRoutes = require('./routes/asistenciaRoutes');
+const gestionConsultasRoutes = require('./routes/gestionConsultasRoutes');
 
 // Importar middlewares
 const errorHandler = require('./middleware/errorHandler');
@@ -103,6 +104,7 @@ app.use('/api/reservas', require('./routes/reservaRoutes'));
 app.use('/api/registro-comidas', require('./routes/registroComidasRoutes'));
 app.use('/api/email', emailRoutes);
 app.use('/api/asistencia', asistenciaRoutes);
+app.use('/api/gestion-consultas', gestionConsultasRoutes);
 app.use('/api', registrationKeyRoutes);
 
 // Ruta de prueba de conexión
@@ -153,6 +155,11 @@ app.get('/dashboard/professional', (req, res) => {
 // Ruta de gestión de asistencia
 app.get('/asistencia', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'asistencia', 'index.html'));
+});
+
+// Ruta de gestión de consultas
+app.get('/gestion-consultas', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'gestion-consultas', 'index.html'));
 });
 
 // Ruta de agenda

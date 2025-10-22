@@ -6,7 +6,7 @@ class UsuarioController {
     static async getPacientesByProfesional(req, res) {
         try {
             const { profesionalId } = req.params;
-            const { search, status, sortBy, forceRefresh } = req.query;
+            const { search, status, sortBy, forceRefresh, page = 1, limit = 10 } = req.query;
             
             if (!profesionalId || isNaN(profesionalId)) {
                 return res.status(400).json({
@@ -21,7 +21,9 @@ class UsuarioController {
                 search,
                 status,
                 sortBy,
-                forceRefresh: forceRefresh === 'true'
+                forceRefresh: forceRefresh === 'true',
+                page: parseInt(page),
+                limit: parseInt(limit)
             });
             
             res.json(result);

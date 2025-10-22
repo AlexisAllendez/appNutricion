@@ -5701,7 +5701,21 @@ function editAnthropometry(medicionId) {
 
 // Populate edit anthropometry form
 function populateEditarAntropometriaForm(medicion) {
-    document.getElementById('editarAntropometriaFecha').value = medicion.fecha;
+    console.log('📝 Poblando formulario de edición con medición:', medicion);
+    console.log('📅 Fecha original:', medicion.fecha);
+    
+    // Formatear la fecha para el input date
+    let fechaFormateada = medicion.fecha;
+    if (medicion.fecha) {
+        // Si la fecha viene como string, convertirla al formato correcto
+        const fecha = new Date(medicion.fecha);
+        if (!isNaN(fecha.getTime())) {
+            fechaFormateada = fecha.toISOString().split('T')[0]; // YYYY-MM-DD
+            console.log('📅 Fecha formateada:', fechaFormateada);
+        }
+    }
+    
+    document.getElementById('editarAntropometriaFecha').value = fechaFormateada;
     document.getElementById('editarAntropometriaPeso').value = medicion.peso || '';
     document.getElementById('editarAntropometriaAltura').value = medicion.altura || '';
     document.getElementById('editarAntropometriaIMC').value = medicion.imc || '';
@@ -5712,6 +5726,8 @@ function populateEditarAntropometriaForm(medicion) {
     document.getElementById('editarAntropometriaPorcentajeGrasa').value = medicion.porcentaje_grasa || '';
     document.getElementById('editarAntropometriaMasaMuscular').value = medicion.masa_muscular || '';
     document.getElementById('editarAntropometriaObservaciones').value = medicion.observaciones || '';
+    
+    console.log('✅ Formulario poblado exitosamente');
 }
 
 // Save edited anthropometry measurement

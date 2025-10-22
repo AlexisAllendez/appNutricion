@@ -233,6 +233,29 @@ class AsistenciaManager {
                         this.consultasData.push(consulta);
                     });
                 });
+                
+                // Ordenar las consultas por estado, fecha y hora (igual que en el backend)
+                this.consultasData.sort((a, b) => {
+                    // Primero por estado: Pendientes → No Asistió → Asistió
+                    const estadoOrder = { 'activo': 1, 'ausente': 2, 'completado': 3 };
+                    const estadoA = estadoOrder[a.estado] || 4;
+                    const estadoB = estadoOrder[b.estado] || 4;
+                    
+                    if (estadoA !== estadoB) {
+                        return estadoA - estadoB;
+                    }
+                    
+                    // Luego por fecha (más reciente primero)
+                    const fechaA = new Date(a.fecha);
+                    const fechaB = new Date(b.fecha);
+                    if (fechaA.getTime() !== fechaB.getTime()) {
+                        return fechaB - fechaA;
+                    }
+                    
+                    // Finalmente por hora (más reciente primero)
+                    return b.hora.localeCompare(a.hora);
+                });
+                
                 this.filteredConsultas = [...this.consultasData];
                 
                 // Actualizar información de paginación
@@ -771,7 +794,10 @@ class AsistenciaManager {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('confirmarAsistenciaModal'));
                 modal.hide();
                 
-                // Recargar datos (que también actualizará las estadísticas)
+                // Actualizar inmediatamente la fila específica en la tabla
+                this.updateConsultaRowInTable(this.currentConsultaId, estado);
+                
+                // Recargar datos completos (que también actualizará las estadísticas)
                 await this.loadConsultasPendientes();
                 
             } else {
@@ -788,6 +814,105 @@ class AsistenciaManager {
         console.log('👁️ Ver detalles de consulta:', consultaId);
         // Implementar vista de detalles si es necesario
         this.showInfo('Función de detalles próximamente disponible');
+    }
+
+    // Actualizar inmediatamente una fila específica en la tabla
+    updateConsultaRowInTable(consultaId, nuevoEstado) {
+        console.log(`🔄 Actualizando fila de consulta ${consultaId} a estado: ${nuevoEstado}`);
+        
+        // Buscar la fila en la tabla
+        const row = document.querySelector(`tr[data-consulta-id="${consultaId}"]`);
+        if (!row) {
+            console.warn(`⚠️ No se encontró la fila para consulta ${consultaId}`);
+            return;
+        }
+        
+        // Actualizar el estado en los datos locales
+        const consulta = this.consultasData.find(c => c.id === consultaId);
+        if (consulta) {
+            consulta.estado = nuevoEstado;
+        }
+        
+        // Actualizar la fila en la tabla
+        const estadoCell = row.querySelector('td:nth-child(8)'); // Columna de estado
+        const accionesCell = row.querySelector('td:nth-child(9)'); // Columna de acciones
+        
+        if (estadoCell) {
+            const estadoClass = this.getEstadoBadgeClass(nuevoEstado);
+            const estadoText = this.getEstadoText(nuevoEstado);
+            const estadoIcon = this.getEstadoIcon(nuevoEstado);
+            
+            estadoCell.innerHTML = `
+                <span class="badge ${estadoClass}">
+                    <i class="${estadoIcon} me-1"></i>
+                    ${estadoText}
+                </span>
+            `;
+        }
+        
+        if (accionesCell) {
+            if (nuevoEstado === 'activo') {
+                accionesCell.innerHTML = `
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-success btn-sm" 
+                                onclick="asistenciaManager.confirmarAsistenciaModal(${consultaId}, '${consulta?.paciente_nombre || 'Paciente'}', '${consulta?.fecha || ''}', '${consulta?.hora || ''}', '${consulta?.motivo_consulta || ''}', '${consulta?.paciente_email || ''}', '${consulta?.paciente_telefono || ''}')"
+                                title="Confirmar asistencia">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" 
+                                onclick="asistenciaManager.verDetalles(${consultaId})"
+                                title="Ver detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${consulta?.codigo_cancelacion ? `
+                            <button class="btn btn-outline-secondary btn-sm" 
+                                    onclick="asistenciaManager.mostrarCodigoCancelacion('${consulta.codigo_cancelacion}')"
+                                    title="Ver código de cancelación">
+                                <i class="fas fa-key"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                accionesCell.innerHTML = `
+                    <div class="btn-group btn-group-sm" role="group">
+                        <span class="text-muted small">
+                            <i class="fas fa-check-circle me-1"></i>
+                            Confirmado
+                        </span>
+                        <button class="btn btn-outline-info btn-sm" 
+                                onclick="asistenciaManager.verDetalles(${consultaId})"
+                                title="Ver detalles">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${consulta?.codigo_cancelacion ? `
+                            <button class="btn btn-outline-secondary btn-sm" 
+                                    onclick="asistenciaManager.mostrarCodigoCancelacion('${consulta.codigo_cancelacion}')"
+                                    title="Ver código de cancelación">
+                                <i class="fas fa-key"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        }
+        
+        // Actualizar la clase de la fila según el estado
+        row.className = `consulta-row ${this.getRowClass(nuevoEstado)}`;
+        
+        console.log(`✅ Fila actualizada para consulta ${consultaId}`);
+    }
+    
+    // Obtener clase CSS para la fila según el estado
+    getRowClass(estado) {
+        if (estado === 'activo') {
+            return 'table-warning'; // Amarillo para pendientes
+        } else if (estado === 'completado') {
+            return 'table-success'; // Verde para asistió
+        } else if (estado === 'ausente') {
+            return 'table-danger'; // Rojo para no asistió
+        }
+        return '';
     }
 
     mostrarCodigoCancelacion(codigo) {

@@ -20,7 +20,7 @@ class AsistenciaController {
                 });
             }
 
-            // Obtener consultas que necesitan confirmación de asistencia (versión simplificada)
+            // Obtener consultas que necesitan confirmación de asistencia (versión corregida)
             const query = `
                 SELECT 
                     c.id,
@@ -40,13 +40,13 @@ class AsistenciaController {
                     'Dr. Alexis Allendez' as profesional_nombre
                 FROM consultas c
                 WHERE c.profesional_id = ?
-                AND c.fecha <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                AND c.fecha <= CURDATE()
                 AND c.estado IN ('activo', 'ausente', 'completado')
                 ORDER BY 
                     CASE c.estado 
-                        WHEN 'activo' THEN 1      -- Pendientes primero
-                        WHEN 'completado' THEN 2   -- Asistió segundo
-                        WHEN 'ausente' THEN 3      -- No asistió último
+                        WHEN 'activo' THEN 1      -- Pendientes primero (más urgente)
+                        WHEN 'ausente' THEN 2     -- No asistió segundo (requiere atención)
+                        WHEN 'completado' THEN 3  -- Asistió último (ya resuelto)
                         ELSE 4 
                     END,
                     c.fecha DESC, 
@@ -58,7 +58,7 @@ class AsistenciaController {
             console.log('📅 Fecha actual (CURDATE):', new Date().toISOString().split('T')[0]);
             console.log('👤 Profesional ID:', profesionalId);
             
-            const consultas = await executeQuery(query, [profesionalId, limit, offset]);
+            const consultas = await executeQuery(query, [profesionalId, parseInt(limit), parseInt(offset)]);
             console.log('✅ Consulta ejecutada exitosamente, resultados:', consultas.length);
             
             // Obtener total de consultas para paginación
@@ -66,7 +66,7 @@ class AsistenciaController {
                 SELECT COUNT(*) as total
                 FROM consultas c
                 WHERE c.profesional_id = ?
-                AND c.fecha <= DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                AND c.fecha <= CURDATE()
                 AND c.estado IN ('activo', 'ausente', 'completado')
             `;
             const countResult = await executeQuery(countQuery, [profesionalId]);
@@ -251,8 +251,8 @@ class AsistenciaController {
             .map(fecha => ({
                 fecha,
                 consultas: agrupadas[fecha].sort((a, b) => {
-                    // Primero por estado: Pendientes → Asistió → No Asistió
-                    const estadoOrder = { 'activo': 1, 'completado': 2, 'ausente': 3 };
+                    // Primero por estado: Pendientes → No Asistió → Asistió
+                    const estadoOrder = { 'activo': 1, 'ausente': 2, 'completado': 3 };
                     const estadoA = estadoOrder[a.estado] || 4;
                     const estadoB = estadoOrder[b.estado] || 4;
                     

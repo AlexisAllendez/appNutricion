@@ -967,6 +967,186 @@ class EmailService {
 
         return html;
     }
+    // Enviar notificación de reprogramación de consulta
+    async sendReprogramacionNotificacion(data) {
+        try {
+            const {
+                pacienteNombre,
+                pacienteEmail,
+                profesionalNombre,
+                fechaOriginal,
+                horaOriginal,
+                nuevaFecha,
+                nuevaHora,
+                motivo
+            } = data;
+
+            if (!this.transporter) {
+                throw new Error('Email service no está inicializado');
+            }
+
+            // Formatear fechas para el email
+            const fechaOriginalFormateada = this.formatDateForEmail(fechaOriginal);
+            const nuevaFechaFormateada = this.formatDateForEmail(nuevaFecha);
+            const horaOriginalFormateada = this.formatTimeForEmail(horaOriginal);
+            const nuevaHoraFormateada = this.formatTimeForEmail(nuevaHora);
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Consulta Reprogramada</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            background-color: #f8f9fa;
+                        }
+                        .container {
+                            background-color: white;
+                            padding: 30px;
+                            border-radius: 10px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        }
+                        .header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            padding-bottom: 20px;
+                            border-bottom: 2px solid #007bff;
+                        }
+                        .header h1 {
+                            color: #007bff;
+                            margin: 0;
+                            font-size: 24px;
+                        }
+                        .content {
+                            margin-bottom: 30px;
+                        }
+                        .info-box {
+                            background-color: #f8f9fa;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin: 20px 0;
+                            border-left: 4px solid #007bff;
+                        }
+                        .old-appointment {
+                            background-color: #fff3cd;
+                            border-left-color: #ffc107;
+                        }
+                        .new-appointment {
+                            background-color: #d4edda;
+                            border-left-color: #28a745;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 1px solid #dee2e6;
+                            color: #6c757d;
+                            font-size: 14px;
+                        }
+                        .btn {
+                            display: inline-block;
+                            padding: 12px 24px;
+                            background-color: #007bff;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            margin: 10px 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>📅 Consulta Reprogramada</h1>
+                        </div>
+                        
+                        <div class="content">
+                            <p>Estimado/a <strong>${pacienteNombre}</strong>,</p>
+                            
+                            <p>Le informamos que su consulta con el Dr. <strong>${profesionalNombre}</strong> ha sido reprogramada.</p>
+                            
+                            <div class="info-box old-appointment">
+                                <h3>📋 Consulta Original</h3>
+                                <p><strong>Fecha:</strong> ${fechaOriginalFormateada}</p>
+                                <p><strong>Hora:</strong> ${horaOriginalFormateada}</p>
+                            </div>
+                            
+                            <div class="info-box new-appointment">
+                                <h3>✅ Nueva Consulta</h3>
+                                <p><strong>Fecha:</strong> ${nuevaFechaFormateada}</p>
+                                <p><strong>Hora:</strong> ${nuevaHoraFormateada}</p>
+                            </div>
+                            
+                            ${motivo ? `
+                                <div class="info-box">
+                                    <h3>📝 Motivo de la reprogramación</h3>
+                                    <p>${motivo}</p>
+                                </div>
+                            ` : ''}
+                            
+                            <p>Por favor, tome nota de la nueva fecha y hora. Si tiene alguna consulta o necesita realizar algún cambio, no dude en contactarnos.</p>
+                            
+                            <p>¡Esperamos verle en su nueva cita!</p>
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Este es un mensaje automático del sistema de gestión nutricional.</p>
+                            <p>Por favor, no responda a este email.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const mailOptions = {
+                from: `"Sistema Nutricional" <${process.env.SMTP_USER}>`,
+                to: pacienteEmail,
+                subject: `Consulta Reprogramada - ${profesionalNombre}`,
+                html: htmlContent
+            };
+
+            const result = await this.transporter.sendMail(mailOptions);
+            console.log('✅ Email de reprogramación enviado:', result.messageId);
+            return result;
+
+        } catch (error) {
+            console.error('❌ Error enviando email de reprogramación:', error);
+            throw error;
+        }
+    }
+
+    // Formatear fecha para email
+    formatDateForEmail(dateString) {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return dateString;
+        }
+    }
+
+    // Formatear hora para email
+    formatTimeForEmail(timeString) {
+        try {
+            const [hours, minutes] = timeString.split(':');
+            return `${hours}:${minutes}`;
+        } catch (error) {
+            return timeString;
+        }
+    }
 }
 
 module.exports = EmailService;
