@@ -267,12 +267,42 @@ class GestionConsultasController {
                 });
             }
 
+            // Obtener datos del paciente y profesional para el email
+            const paciente = await Usuario.findById(consulta.usuario_id);
+            const profesional = await Usuario.findById(consulta.profesional_id);
+
+            if (!paciente || !profesional) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No se pudieron obtener los datos del paciente o profesional'
+                });
+            }
+
             // Cancelar la consulta
-            await Consulta.cancelar(consultaId, motivo);
+            await Consulta.update(consultaId, {
+                estado: 'cancelado',
+                notas_profesional: motivo || 'Consulta cancelada'
+            });
+
+            // Enviar email de notificación al paciente
+            try {
+                const emailService = new EmailService();
+                await emailService.sendCancelacionNotificacion({
+                    pacienteNombre: paciente.apellido_nombre,
+                    pacienteEmail: paciente.email,
+                    profesionalNombre: profesional.nombre,
+                    fecha: consulta.fecha,
+                    hora: consulta.hora,
+                    motivo: motivo || 'Sin motivo especificado'
+                });
+            } catch (emailError) {
+                console.warn('Error enviando email de cancelación:', emailError);
+                // No fallar la operación si el email falla
+            }
 
             res.json({
                 success: true,
-                message: 'Consulta cancelada exitosamente'
+                message: 'Consulta cancelada exitosamente y notificación enviada por email'
             });
 
         } catch (error) {

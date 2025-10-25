@@ -5153,6 +5153,7 @@ function generatePaginationButtons(paginationData = null) {
         `;
     }
     
+    
     return buttons;
 }
 

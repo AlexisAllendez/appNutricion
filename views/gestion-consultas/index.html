@@ -156,6 +156,59 @@
         </div>
     </div>
 
+    <!-- Modal para Cancelar Consulta -->
+    <div class="modal fade" id="cancelarModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle me-2"></i>Cancelar Consulta
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¡Atención!</strong> Esta acción cancelará la consulta y se enviará una notificación por email al paciente.
+                    </div>
+                    
+                    <form id="cancelar-form">
+                        <input type="hidden" id="cancelar-consulta-id">
+                        
+                        <div class="mb-3">
+                            <label for="cancelar-paciente-nombre" class="form-label">Paciente:</label>
+                            <input type="text" class="form-control" id="cancelar-paciente-nombre" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="cancelar-fecha" class="form-label">Fecha de la consulta:</label>
+                            <input type="text" class="form-control" id="cancelar-fecha" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="cancelar-hora" class="form-label">Hora de la consulta:</label>
+                            <input type="text" class="form-control" id="cancelar-hora" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="motivo-cancelacion" class="form-label">Motivo de la cancelación:</label>
+                            <textarea class="form-control" id="motivo-cancelacion" rows="3" placeholder="Explique el motivo de la cancelación..." required></textarea>
+                            <div class="form-text">Este motivo se incluirá en el email de notificación al paciente.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>No Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmar-cancelacion">
+                        <i class="fas fa-ban me-2"></i>Confirmar Cancelación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Spinner -->
     <div id="loading-spinner" class="d-none">
         <div class="spinner-overlay">

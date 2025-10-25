@@ -123,6 +123,11 @@ class GestionConsultasManager {
             this.confirmarReprogramacion();
         });
 
+        // Modal de cancelación
+        document.getElementById('confirmar-cancelacion').addEventListener('click', () => {
+            this.confirmarCancelacion();
+        });
+
         // Event listener para cargar horarios cuando cambia la fecha
         document.getElementById('nueva-fecha').addEventListener('change', async (e) => {
             const fecha = e.target.value;
@@ -234,7 +239,7 @@ class GestionConsultasManager {
                         <button class="btn btn-reprogramar btn-action" onclick="gestionConsultas.openReprogramarModal(${consulta.id})">
                             <i class="fas fa-calendar-plus me-1"></i>Reprogramar
                         </button>
-                        <button class="btn btn-cancelar btn-action" onclick="gestionConsultas.cancelarConsulta(${consulta.id})">
+                        <button class="btn btn-cancelar btn-action" onclick="gestionConsultas.openCancelarModal(${consulta.id})">
                             <i class="fas fa-times me-1"></i>Cancelar
                         </button>
                     </div>
@@ -370,12 +375,36 @@ class GestionConsultasManager {
         }
     }
 
-    async cancelarConsulta(consultaId) {
-        if (!confirm('¿Está seguro de que desea cancelar esta consulta?')) {
-            return;
-        }
+    // Abrir modal de cancelación
+    openCancelarModal(consultaId) {
+        const consulta = this.consultasData.find(c => c.id === consultaId);
+        if (!consulta) return;
 
+        // Llenar datos del modal
+        document.getElementById('cancelar-consulta-id').value = consultaId;
+        document.getElementById('cancelar-paciente-nombre').value = consulta.paciente_nombre;
+        document.getElementById('cancelar-fecha').value = this.formatDate(consulta.fecha);
+        document.getElementById('cancelar-hora').value = consulta.hora;
+        
+        // Limpiar motivo
+        document.getElementById('motivo-cancelacion').value = '';
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('cancelarModal'));
+        modal.show();
+    }
+
+    // Confirmar cancelación
+    async confirmarCancelacion() {
         try {
+            const consultaId = document.getElementById('cancelar-consulta-id').value;
+            const motivo = document.getElementById('motivo-cancelacion').value;
+
+            if (!motivo.trim()) {
+                this.showAlert('Por favor, ingrese el motivo de la cancelación', 'warning');
+                return;
+            }
+
             this.showLoading(true);
 
             const user = JSON.parse(localStorage.getItem('user'));
@@ -386,7 +415,10 @@ class GestionConsultasManager {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    motivo: motivo
+                })
             });
 
             if (!response.ok) {
@@ -394,7 +426,16 @@ class GestionConsultasManager {
                 throw new Error(errorData.message || `Error ${response.status}`);
             }
 
-            this.showAlert('Consulta cancelada exitosamente', 'success');
+            const result = await response.json();
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('cancelarModal'));
+            modal.hide();
+
+            // Mostrar mensaje de éxito
+            this.showAlert('Consulta cancelada exitosamente. Se ha enviado una notificación por email al paciente.', 'success');
+
+            // Recargar datos
             await this.loadConsultas();
 
         } catch (error) {

@@ -1138,13 +1138,149 @@ class EmailService {
         }
     }
 
-    // Formatear hora para email
-    formatTimeForEmail(timeString) {
+    // Enviar notificación de cancelación de consulta
+    async sendCancelacionNotificacion(data) {
         try {
-            const [hours, minutes] = timeString.split(':');
-            return `${hours}:${minutes}`;
+            const {
+                pacienteNombre,
+                pacienteEmail,
+                profesionalNombre,
+                fecha,
+                hora,
+                motivo
+            } = data;
+
+            if (!this.transporter) {
+                throw new Error('Email service no está inicializado');
+            }
+
+            // Formatear fecha para el email
+            const fechaFormateada = this.formatDateForEmail(fecha);
+            const horaFormateada = this.formatTimeForEmail(hora);
+
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Consulta Cancelada</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            background-color: #f8f9fa;
+                        }
+                        .container {
+                            background-color: white;
+                            padding: 30px;
+                            border-radius: 10px;
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                        }
+                        .header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            padding-bottom: 20px;
+                            border-bottom: 2px solid #dc3545;
+                        }
+                        .header h1 {
+                            color: #dc3545;
+                            margin: 0;
+                            font-size: 24px;
+                        }
+                        .content {
+                            margin-bottom: 30px;
+                        }
+                        .info-box {
+                            background-color: #f8f9fa;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin: 20px 0;
+                            border-left: 4px solid #dc3545;
+                        }
+                        .cancelled-appointment {
+                            background-color: #f8d7da;
+                            border-left-color: #dc3545;
+                        }
+                        .reason-box {
+                            background-color: #fff3cd;
+                            border-left-color: #ffc107;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 1px solid #dee2e6;
+                            color: #6c757d;
+                            font-size: 14px;
+                        }
+                        .btn {
+                            display: inline-block;
+                            padding: 12px 24px;
+                            background-color: #007bff;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 5px;
+                            margin: 10px 0;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>❌ Consulta Cancelada</h1>
+                        </div>
+                        
+                        <div class="content">
+                            <p>Estimado/a <strong>${pacienteNombre}</strong>,</p>
+                            
+                            <p>Le informamos que su consulta con el Dr. <strong>${profesionalNombre}</strong> ha sido cancelada.</p>
+                            
+                            <div class="info-box cancelled-appointment">
+                                <h3>📋 Consulta Cancelada</h3>
+                                <p><strong>Fecha:</strong> ${fechaFormateada}</p>
+                                <p><strong>Hora:</strong> ${horaFormateada}</p>
+                            </div>
+                            
+                            ${motivo ? `
+                                <div class="info-box reason-box">
+                                    <h3>📝 Motivo de la cancelación</h3>
+                                    <p>${motivo}</p>
+                                </div>
+                            ` : ''}
+                            
+                            <p>Si necesita reprogramar su consulta o tiene alguna consulta, no dude en contactarnos.</p>
+                            
+                            <p>Lamentamos las molestias ocasionadas.</p>
+                        </div>
+                        
+                        <div class="footer">
+                            <p>Este es un mensaje automático del sistema de gestión nutricional.</p>
+                            <p>Por favor, no responda a este email.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const mailOptions = {
+                from: `"Sistema Nutricional" <${process.env.SMTP_USER}>`,
+                to: pacienteEmail,
+                subject: `Consulta Cancelada - ${profesionalNombre}`,
+                html: htmlContent
+            };
+
+            const result = await this.transporter.sendMail(mailOptions);
+            console.log('✅ Email de cancelación enviado:', result.messageId);
+            return result;
+
         } catch (error) {
-            return timeString;
+            console.error('❌ Error enviando email de cancelación:', error);
+            throw error;
         }
     }
 }
