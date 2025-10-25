@@ -20,6 +20,7 @@ router.get('/', (req, res) => {
         message: 'API de historia clínica funcionando correctamente',
         endpoints: [
             'GET /paciente/:pacienteId - Obtener historia clínica completa',
+            'GET /paciente/:pacienteId/exportar - Exportar historia clínica a PDF',
             'POST /paciente/:pacienteId/consulta - Crear nueva consulta',
             'POST /paciente/:pacienteId/medicion - Crear nueva medición',
             'POST /paciente/:pacienteId/plan - Crear nuevo plan alimentario',

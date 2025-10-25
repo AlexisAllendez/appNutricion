@@ -106,12 +106,6 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#registro-comidas" id="registroComidasLink">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <span>Registro de Comidas</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" href="#asistencia" id="asistenciaLink">
                                     <i class="fas fa-check-circle"></i>
                                     <span>Gestión de Asistencia</span>
@@ -177,56 +171,6 @@
                                 </div>
                             </div>
 
-                            <!-- Estadísticas principales -->
-                            <div class="row mb-4">
-                                <div class="col-lg-4 col-md-4 mb-3">
-                                    <div class="stat-card stat-card-primary h-100">
-                                        <div class="stat-card-icon">
-                                            <i class="fas fa-users"></i>
-                                        </div>
-                                        <div class="stat-card-content">
-                                            <h3 class="stat-number" id="homeTotalPatients">0</h3>
-                                            <p class="stat-label">Pacientes Total</p>
-                                            <div class="stat-trend">
-                                                <i class="fas fa-arrow-up text-success"></i>
-                                                <span class="text-muted small">+2 esta semana</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-lg-4 col-md-4 mb-3">
-                                    <div class="stat-card stat-card-success h-100">
-                                        <div class="stat-card-icon">
-                                            <i class="fas fa-calendar-check"></i>
-                                        </div>
-                                        <div class="stat-card-content">
-                                            <h3 class="stat-number" id="homeTodayConsultations">0</h3>
-                                            <p class="stat-label">Consultas Hoy</p>
-                                            <div class="stat-trend">
-                                                <i class="fas fa-clock text-info"></i>
-                                                <span class="text-muted small" id="homeNextAppointment">Sin citas</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-lg-4 col-md-4 mb-3">
-                                    <div class="stat-card stat-card-warning h-100">
-                                        <div class="stat-card-icon">
-                                            <i class="fas fa-clipboard-list"></i>
-                                        </div>
-                                        <div class="stat-card-content">
-                                            <h3 class="stat-number" id="homePendingTasks">0</h3>
-                                            <p class="stat-label">Pendientes</p>
-                                            <div class="stat-trend">
-                                                <i class="fas fa-exclamation-circle text-warning"></i>
-                                                <span class="text-muted small">Revisar</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
 
                             <div class="row">
                                 <!-- Columna izquierda -->
@@ -519,147 +463,6 @@
                                             <!-- Se generará dinámicamente -->
                                         </ul>
                                     </nav>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Registro de Comidas Section -->
-                    <div id="registro-comidas-section" class="content-section">
-                        <div class="section-header">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h2 class="section-title">Registro de Comidas</h2>
-                                    <p class="section-subtitle">Seguimiento de alimentación de pacientes</p>
-                                </div>
-                                <div class="btn-group">
-                                    <button class="btn btn-success" id="verEstadisticasBtn">
-                                        <i class="fas fa-chart-bar me-2"></i>Estadísticas
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Controles de Vista -->
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-6">
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-outline-primary active" id="vistaPorPacienteBtn">
-                                                <i class="fas fa-users me-2"></i>Por Paciente
-                                            </button>
-                                            <button type="button" class="btn btn-outline-primary" id="vistaTodosBtn">
-                                                <i class="fas fa-list me-2"></i>Todos los Registros
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 text-md-end">
-                                        <div class="btn-group" role="group">
-                                            <select class="form-select form-select-sm" id="filtroOrdenamiento" style="width: auto;">
-                                                <option value="fecha_desc">Más recientes primero</option>
-                                                <option value="fecha_asc">Más antiguos primero</option>
-                                                <option value="paciente_asc">Por paciente A-Z</option>
-                                                <option value="paciente_desc">Por paciente Z-A</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Filtros -->
-                        <div class="card mb-4">
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <label for="filtroPaciente" class="form-label small">Paciente</label>
-                                        <select class="form-select form-select-sm" id="filtroPaciente">
-                                            <option value="">Todos los pacientes</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label for="filtroTipoComida" class="form-label small">Tipo de Comida</label>
-                                        <select class="form-select form-select-sm" id="filtroTipoComida">
-                                            <option value="">Todos los tipos</option>
-                                            <option value="desayuno">Desayuno</option>
-                                            <option value="almuerzo">Almuerzo</option>
-                                            <option value="merienda">Merienda</option>
-                                            <option value="cena">Cena</option>
-                                            <option value="colacion">Colación</option>
-                                            <option value="otro">Otro</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="filtroFechaInicio" class="form-label small">Fecha Inicio</label>
-                                        <input type="date" class="form-control form-control-sm" id="filtroFechaInicio">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <label for="filtroFechaFin" class="form-label small">Fecha Fin</label>
-                                        <input type="date" class="form-control form-control-sm" id="filtroFechaFin">
-                                    </div>
-                                    <div class="col-md-2 d-flex align-items-end">
-                                        <button class="btn btn-outline-primary btn-sm w-100" id="aplicarFiltrosBtn">
-                                            <i class="fas fa-filter me-1"></i>Aplicar
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Estadísticas rápidas -->
-                        <div class="row mb-4">
-                            <div class="col-md-3 mb-3">
-                                <div class="card text-center">
-                                    <div class="card-body">
-                                        <i class="fas fa-clipboard-list fa-2x text-primary mb-2"></i>
-                                        <h5 class="card-title">Registros Hoy</h5>
-                                        <span class="badge bg-primary fs-4" id="registrosHoyDash">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card text-center">
-                                    <div class="card-body">
-                                        <i class="fas fa-users fa-2x text-success mb-2"></i>
-                                        <h5 class="card-title">Pacientes Activos</h5>
-                                        <span class="badge bg-success fs-4" id="pacientesActivosDash">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card text-center">
-                                    <div class="card-body">
-                                        <i class="fas fa-camera fa-2x text-warning mb-2"></i>
-                                        <h5 class="card-title">Con Fotos</h5>
-                                        <span class="badge bg-warning fs-4" id="registrosConFotosDash">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <div class="card text-center">
-                                    <div class="card-body">
-                                        <i class="fas fa-calendar-week fa-2x text-info mb-2"></i>
-                                        <h5 class="card-title">Esta Semana</h5>
-                                        <span class="badge bg-info fs-4" id="registrosSemanaDash">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Lista de registros -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-list me-2"></i>Registros de Comidas
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div id="registrosComidasContainer">
-                                    <div class="text-center p-4">
-                                        <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
-                                        <p class="text-muted mb-0">Cargando registros de comidas...</p>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1203,6 +1006,5 @@
     <!-- Custom JS -->
     <script src="professional-dashboard.js?v=6"></script>
     <script src="home/home.js?v=1"></script>
-    <script src="registro-comidas.js?v=4"></script>
 </body>
 </html>

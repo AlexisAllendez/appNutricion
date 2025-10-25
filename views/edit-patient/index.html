@@ -134,11 +134,11 @@
                                         <label for="estado_civil" class="form-label">Estado Civil</label>
                                         <select class="form-select" id="estado_civil" name="estado_civil">
                                             <option value="">Seleccionar...</option>
-                                            <option value="Soltero">Soltero</option>
-                                            <option value="Casado">Casado</option>
-                                            <option value="Divorciado">Divorciado</option>
-                                            <option value="Viudo">Viudo</option>
-                                            <option value="Concubinato">Concubinato</option>
+                                            <option value="Soltero/a">Soltero/a</option>
+                                            <option value="Casado/a">Casado/a</option>
+                                            <option value="Divorciado/a">Divorciado/a</option>
+                                            <option value="Viudo/a">Viudo/a</option>
+                                            <option value="Unión Libre">Unión Libre</option>
                                         </select>
                                     </div>
                                 </div>
@@ -155,33 +155,6 @@
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <!-- Opción para crear cuenta de usuario -->
-                                <div class="mb-4">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="crearCuenta" name="crearCuenta">
-                                        <label class="form-check-label" for="crearCuenta">
-                                            <strong>Crear cuenta de usuario para el paciente</strong>
-                                            <small class="text-muted d-block">Permite al paciente acceder al sistema con usuario y contraseña</small>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <!-- Campos de usuario y contraseña (condicionales) -->
-                                <div id="camposUsuario" class="usuario-fields">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="usuario" class="form-label">Usuario *</label>
-                                            <input type="text" class="form-control" id="usuario" name="usuario">
-                                            <div class="invalid-feedback"></div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="contrasena" class="form-label">Contraseña *</label>
-                                            <input type="password" class="form-control" id="contrasena" name="contrasena">
-                                            <div class="invalid-feedback"></div>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="email" class="form-label">Email</label>
@@ -260,35 +233,6 @@
                                     <label for="observaciones" class="form-label">Observaciones Generales</label>
                                     <textarea class="form-control" id="observaciones" name="observaciones" rows="6" 
                                               placeholder="Ingrese observaciones relevantes sobre el paciente..."></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cambio de Contraseña -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">
-                                    <i class="fas fa-lock me-2"></i>Cambio de Contraseña
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Nota:</strong> Deje los campos de contraseña vacíos si no desea cambiarla.
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="nueva_contrasena" class="form-label">Nueva Contraseña</label>
-                                        <input type="password" class="form-control" id="nueva_contrasena" name="nueva_contrasena">
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <label for="confirmar_contrasena" class="form-label">Confirmar Nueva Contraseña</label>
-                                        <input type="password" class="form-control" id="confirmar_contrasena" name="confirmar_contrasena">
-                                    </div>
                                 </div>
                             </div>
                         </div>

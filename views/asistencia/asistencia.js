@@ -812,8 +812,150 @@ class AsistenciaManager {
 
     verDetalles(consultaId) {
         console.log('👁️ Ver detalles de consulta:', consultaId);
-        // Implementar vista de detalles si es necesario
-        this.showInfo('Función de detalles próximamente disponible');
+        
+        // Buscar la consulta en los datos locales
+        const consulta = this.consultasData.find(c => c.id === consultaId);
+        if (!consulta) {
+            this.showError('No se encontró la consulta');
+            return;
+        }
+        
+        // Llenar el modal con los datos de la consulta
+        this.populateDetallesModal(consulta);
+        
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('verDetallesModal'));
+        modal.show();
+    }
+
+    populateDetallesModal(consulta) {
+        // Información del paciente
+        document.getElementById('detallesPacienteNombre').textContent = consulta.paciente_nombre || 'No disponible';
+        document.getElementById('detallesPacienteEmail').textContent = consulta.paciente_email || 'No disponible';
+        document.getElementById('detallesPacienteTelefono').textContent = consulta.paciente_telefono || 'No disponible';
+        document.getElementById('detallesPacienteDocumento').textContent = consulta.paciente_documento || 'No disponible';
+        
+        // Detalles de la consulta
+        document.getElementById('detallesFecha').textContent = this.formatDateLong(consulta.fecha);
+        document.getElementById('detallesHora').textContent = consulta.hora;
+        document.getElementById('detallesMotivo').textContent = consulta.motivo_consulta || 'Sin motivo especificado';
+        
+        // Estado actual
+        const estadoClass = this.getEstadoBadgeClass(consulta.estado);
+        const estadoText = this.getEstadoText(consulta.estado);
+        const estadoIcon = this.getEstadoIcon(consulta.estado);
+        
+        document.getElementById('detallesEstado').innerHTML = `
+            <span class="badge ${estadoClass}">
+                <i class="${estadoIcon} me-1"></i>
+                ${estadoText}
+            </span>
+        `;
+        
+        // Estado actual para el selector
+        document.getElementById('detallesEstadoActual').innerHTML = `
+            <span class="badge ${estadoClass}">
+                <i class="${estadoIcon} me-1"></i>
+                ${estadoText}
+            </span>
+        `;
+        
+        // Notas profesionales
+        const notasActuales = consulta.notas_profesional || '';
+        const notasElement = document.getElementById('detallesNotasActuales');
+        if (notasActuales.trim()) {
+            notasElement.innerHTML = `<div class="text-dark">${notasActuales}</div>`;
+        } else {
+            notasElement.innerHTML = '<em class="text-muted">Sin notas registradas</em>';
+        }
+        
+        // Limpiar el textarea de notas nuevas
+        document.getElementById('detallesNotasNuevas').value = '';
+        
+        // Limpiar el selector de estado
+        document.getElementById('detallesNuevoEstado').value = '';
+        
+        // Guardar el ID de la consulta para uso posterior
+        this.currentConsultaId = consulta.id;
+    }
+
+    // Función para cambiar el estado de la consulta
+    async cambiarEstadoConsulta() {
+        if (!this.currentConsultaId) {
+            this.showError('No hay consulta seleccionada');
+            return;
+        }
+
+        const nuevoEstado = document.getElementById('detallesNuevoEstado').value;
+        const nuevasNotas = document.getElementById('detallesNotasNuevas').value.trim();
+
+        if (!nuevoEstado) {
+            this.showError('Por favor selecciona un nuevo estado');
+            return;
+        }
+
+        try {
+            console.log(`🔄 Cambiando estado de consulta ${this.currentConsultaId} a: ${nuevoEstado}`);
+            
+            const response = await fetch(`/api/asistencia/consulta/${this.currentConsultaId}/cambiar-estado`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    estado: nuevoEstado,
+                    notas_profesional: nuevasNotas
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error cambiando estado');
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showSuccess('Estado actualizado correctamente');
+                
+                // Actualizar la fila en la tabla
+                this.updateConsultaRowInTable(this.currentConsultaId, nuevoEstado);
+                
+                // Actualizar las estadísticas
+                await this.loadEstadisticas();
+                
+                // Cerrar el modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('verDetallesModal'));
+                modal.hide();
+                
+                // Limpiar el formulario
+                document.getElementById('detallesNuevoEstado').value = '';
+                document.getElementById('detallesNotasNuevas').value = '';
+            } else {
+                throw new Error(result.message || 'Error actualizando estado');
+            }
+        } catch (error) {
+            console.error('❌ Error cambiando estado:', error);
+            this.showError('Error cambiando estado: ' + error.message);
+        }
+    }
+
+    // Formatear fecha larga para mostrar en detalles
+    formatDateLong(dateString) {
+        try {
+            const date = new Date(dateString);
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            };
+            return date.toLocaleDateString('es-ES', options);
+        } catch (error) {
+            console.warn('⚠️ Error formateando fecha:', error);
+            return dateString;
+        }
     }
 
     // Actualizar inmediatamente una fila específica en la tabla
@@ -993,6 +1135,15 @@ function confirmarAsistencia(estado) {
 function toggleViewMode() {
     // Implementar cambio de vista si es necesario
     asistenciaManager.showInfo('Cambio de vista próximamente disponible');
+}
+
+// Función global para cambiar estado de consulta (llamada desde HTML)
+function cambiarEstadoConsulta() {
+    if (asistenciaManager) {
+        asistenciaManager.cambiarEstadoConsulta();
+    } else {
+        console.error('AsistenciaManager no está inicializado');
+    }
 }
 
 // Inicializar cuando el DOM esté listo

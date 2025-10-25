@@ -12,8 +12,8 @@ async function initializeHomeSection() {
     // Configurar event listeners
     setupHomeEventListeners();
     
-    // Cargar datos de estadísticas
-    await loadHomeStatistics();
+    // Cargar datos de estadísticas - DESHABILITADO
+    // await loadHomeStatistics();
     
     // Actualizar fecha y hora actual
     startDateTimeUpdates();
@@ -33,7 +33,8 @@ async function initializeHomeSection() {
 // Variable global para almacenar la zona horaria del profesional
 let professionalTimezone = 'UTC';
 
-// Cargar estadísticas principales
+// Cargar estadísticas principales - DESHABILITADO
+/*
 async function loadHomeStatistics() {
     try {
         console.log('📊 Cargando estadísticas del dashboard...');
@@ -75,6 +76,7 @@ async function loadHomeStatistics() {
         showErrorState();
     }
 }
+*/
 
 // Fetch de información del profesional
 async function fetchProfessionalInfo(professionalId, token) {
@@ -188,7 +190,8 @@ async function fetchTodayConsultations(professionalId, token, timezone = 'UTC') 
     }
 }
 
-// Actualizar UI con estadísticas
+// Actualizar UI con estadísticas - DESHABILITADO
+/*
 function updateStatisticsUI(stats) {
     console.log('🎨 Actualizando UI con estadísticas:', stats);
     
@@ -222,8 +225,10 @@ function updateStatisticsUI(stats) {
     // Remover estado de carga
     removeLoadingState();
 }
+*/
 
-// Mostrar estado de carga
+// Mostrar estado de carga - DESHABILITADO
+/*
 function showLoadingState() {
     const elements = ['homeTotalPatients', 'homeTodayConsultations', 'homePendingTasks'];
     elements.forEach(id => {
@@ -234,8 +239,10 @@ function showLoadingState() {
         }
     });
 }
+*/
 
-// Remover estado de loading
+// Remover estado de loading - DESHABILITADO
+/*
 function removeLoadingState() {
     const elements = ['homeTotalPatients', 'homeTodayConsultations', 'homePendingTasks'];
     elements.forEach(id => {
@@ -245,8 +252,10 @@ function removeLoadingState() {
         }
     });
 }
+*/
 
-// Mostrar estado de error
+// Mostrar estado de error - DESHABILITADO
+/*
 function showErrorState() {
     const elements = ['homeTotalPatients', 'homeTodayConsultations', 'homePendingTasks'];
     elements.forEach(id => {
@@ -257,6 +266,7 @@ function showErrorState() {
         }
     });
 }
+*/
 
 // Calcular tareas pendientes
 function calculatePendingTasks(consultationsData) {
@@ -550,46 +560,94 @@ async function loadUpcomingAppointments() {
         
         if (!userData || !userData.id) return;
         
-        // Obtener citas de hoy y mañana usando la zona horaria del profesional
+        // Mostrar indicador de carga
+        showAppointmentsLoading();
+        
+        console.log('📅 Cargando próximas citas para los próximos 7 días...');
+        console.log('🕐 Zona horaria del profesional:', professionalTimezone);
+        console.log('🕐 Fecha actual del sistema:', new Date().toISOString());
+        console.log('🕐 Fecha actual en zona horaria del profesional:', getTodayInTimezone(professionalTimezone));
+        
+        // Debug detallado de zona horaria
+        debugTimezoneInfo(professionalTimezone);
+        
+        // Obtener citas de los próximos 7 días usando la zona horaria del profesional
         const today = getTodayInTimezone(professionalTimezone);
-        const tomorrow = getTomorrowInTimezone(professionalTimezone);
-        console.log('📅 Fechas de búsqueda - Hoy:', today, 'Mañana:', tomorrow, 'Timezone:', professionalTimezone);
+        const appointments = [];
         
-        const [todayResponse, tomorrowResponse] = await Promise.all([
-            fetch(`/api/agenda/profesional/${userData.id}/consultas/fecha/${today}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch(`/api/agenda/profesional/${userData.id}/consultas/fecha/${tomorrow}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-        ]);
-        
-        let appointments = [];
-        
-        if (todayResponse.ok) {
-            const todayData = await todayResponse.json();
-            appointments = appointments.concat((todayData.data || []).filter(apt => 
-                new Date(`${today}T${apt.hora}`) > new Date()
-            ));
+        // Buscar citas para cada uno de los próximos 7 días
+        for (let i = 0; i < 7; i++) {
+            // Calcular fecha de forma simple y directa (igual que la agenda)
+            const today = new Date();
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + i);
+            
+            // Formatear fecha en formato YYYY-MM-DD para la consulta
+            const dateString = targetDate.toISOString().split('T')[0];
+            
+            console.log(`📅 Día ${i + 1}: Buscando citas para ${dateString}`);
+            console.log(`📅 Fecha base: ${today.toISOString()}`);
+            console.log(`📅 Fecha calculada: ${targetDate.toISOString()}`);
+            console.log(`📅 Fecha formateada: ${dateString}`);
+            
+            try {
+                const response = await fetch(`/api/agenda/profesional/${userData.id}/consultas/fecha/${dateString}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const dayAppointments = data.data || [];
+                    
+                    // Filtrar solo citas futuras para hoy, todas para otros días
+                    if (i === 0) {
+                        // Para hoy, solo mostrar citas futuras
+                        const now = new Date();
+                        const filteredAppointments = dayAppointments.filter(apt => {
+                            const appointmentDateTime = new Date(`${dateString}T${apt.hora}`);
+                            return appointmentDateTime > now;
+                        });
+                        appointments.push(...filteredAppointments);
+                        console.log(`📅 Hoy: ${filteredAppointments.length} citas futuras de ${dayAppointments.length} total`);
+                    } else {
+                        // Para otros días, mostrar todas las citas
+                        appointments.push(...dayAppointments);
+                        console.log(`📅 Día ${i + 1}: ${dayAppointments.length} citas encontradas`);
+                    }
+                } else {
+                    console.warn(`⚠️ Error obteniendo citas para ${dateString}:`, response.status);
+                }
+            } catch (error) {
+                console.error(`❌ Error obteniendo citas para ${dateString}:`, error);
+            }
         }
         
-        if (tomorrowResponse.ok) {
-            const tomorrowData = await tomorrowResponse.json();
-            appointments = appointments.concat(tomorrowData.data || []);
-        }
+        // Filtrar solo citas activas (no canceladas)
+        const activeAppointments = appointments.filter(apt => apt.estado !== 'cancelado');
         
         // Ordenar por fecha y hora
-        appointments.sort((a, b) => {
+        activeAppointments.sort((a, b) => {
             const dateA = new Date(`${a.fecha}T${a.hora}`);
             const dateB = new Date(`${b.fecha}T${b.hora}`);
             return dateA - dateB;
         });
         
-        // Mostrar solo las próximas 3 citas
-        updateUpcomingAppointments(appointments.slice(0, 3));
+        console.log(`📅 Total de citas encontradas: ${activeAppointments.length}`);
+        
+        // Debug: mostrar información de las citas encontradas
+        if (activeAppointments.length > 0) {
+            console.log('📅 Citas encontradas:');
+            activeAppointments.forEach((apt, index) => {
+                console.log(`  ${index + 1}. ${apt.fecha} ${apt.hora} - ${apt.paciente_nombre || apt.paciente_exterior_nombre || 'Paciente externo'} (${apt.estado})`);
+            });
+        }
+        
+        // Mostrar solo las próximas 5 citas
+        updateUpcomingAppointments(activeAppointments.slice(0, 5));
         
     } catch (error) {
         console.error('❌ Error cargando próximas citas:', error);
+        showAppointmentsError();
     }
 }
 
@@ -667,6 +725,35 @@ function updateUpcomingAppointments(appointments) {
             }
         }
     }
+}
+
+// Mostrar indicador de carga para citas
+function showAppointmentsLoading() {
+    const container = document.querySelector('.appointments-container');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="text-muted small mb-0">Cargando próximas citas...</p>
+        </div>
+    `;
+}
+
+// Mostrar error al cargar citas
+function showAppointmentsError() {
+    const container = document.querySelector('.appointments-container');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="text-center p-4">
+            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+            <p class="text-muted mb-1">Error al cargar citas</p>
+            <small class="text-muted">Intenta recargar la página</small>
+        </div>
+    `;
 }
 
 // Inicializar gráfico de consultas semanales
@@ -1032,14 +1119,28 @@ function getTimePeriod(timeString) {
 
 // Formatear fecha de cita de manera legible usando zona horaria del profesional
 function formatAppointmentDate(dateString) {
-    const date = new Date(dateString);
+    // La fecha viene en formato YYYY-MM-DD
+    const dateOnly = dateString.split('T')[0]; // Asegurar que solo tomamos la parte de fecha
     
-    if (isTodayInTimezone(dateString, professionalTimezone)) {
+    // Crear fechas de comparación en formato YYYY-MM-DD
+    const today = new Date();
+    const todayOnly = today.toISOString().split('T')[0];
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const tomorrowOnly = tomorrow.toISOString().split('T')[0];
+    
+    console.log(`📅 Comparando fechas: ${dateOnly} vs ${todayOnly} vs ${tomorrowOnly}`);
+    
+    if (dateOnly === todayOnly) {
         return 'Hoy';
-    } else if (isTomorrowInTimezone(dateString, professionalTimezone)) {
+    } else if (dateOnly === tomorrowOnly) {
         return 'Mañana';
     } else {
-        // Formatear fecha para otros días
+        // Formatear fecha para otros días usando la fecha original
+        const [year, month, day] = dateOnly.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        
         const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
         const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         
@@ -1101,6 +1202,80 @@ function setupHomeEventListeners() {
 
 // ==================== HELPER FUNCTIONS FOR TIMEZONE HANDLING ====================
 
+// Debug: mostrar información detallada de zona horaria
+function debugTimezoneInfo(timezone) {
+    console.log('🔍 === DEBUG ZONA HORARIA ===');
+    console.log('🕐 Zona horaria configurada:', timezone);
+    
+    const now = new Date();
+    console.log('🕐 Fecha/hora actual del sistema:', now.toISOString());
+    console.log('🕐 Fecha/hora actual en UTC:', now.toUTCString());
+    
+    if (timezone && timezone !== 'UTC') {
+        try {
+            const options = { 
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            const formatter = new Intl.DateTimeFormat('en-CA', options);
+            const parts = formatter.formatToParts(now);
+            
+            const year = parts.find(part => part.type === 'year').value;
+            const month = parts.find(part => part.type === 'month').value;
+            const day = parts.find(part => part.type === 'day').value;
+            const hour = parts.find(part => part.type === 'hour').value;
+            const minute = parts.find(part => part.type === 'minute').value;
+            const second = parts.find(part => part.type === 'second').value;
+            
+            console.log(`🕐 Fecha/hora en ${timezone}:`, `${year}-${month}-${day} ${hour}:${minute}:${second}`);
+            console.log('🕐 Fecha de hoy calculada:', getTodayInTimezone(timezone));
+            console.log('🕐 Fecha de mañana calculada:', getTomorrowInTimezone(timezone));
+            
+            // Debug específico para el problema de fechas
+            console.log('🔍 === DEBUG ESPECÍFICO DE FECHAS ===');
+            for (let i = 0; i < 3; i++) {
+                const baseDate = new Date();
+                const options2 = { 
+                    timeZone: timezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                };
+                
+                const formatter2 = new Intl.DateTimeFormat('en-CA', options2);
+                const parts2 = formatter2.formatToParts(baseDate);
+                
+                const year2 = parseInt(parts2.find(part => part.type === 'year').value);
+                const month2 = parseInt(parts2.find(part => part.type === 'month').value) - 1;
+                const day2 = parseInt(parts2.find(part => part.type === 'day').value);
+                
+                const dateInTimezone = new Date(year2, month2, day2);
+                dateInTimezone.setDate(dateInTimezone.getDate() + i);
+                
+                const dateString = dateInTimezone.toISOString().split('T')[0];
+                console.log(`📅 Día ${i + 1} calculado: ${dateString}`);
+            }
+            console.log('🔍 === FIN DEBUG ESPECÍFICO ===');
+            
+        } catch (error) {
+            console.error('❌ Error en debug de zona horaria:', error);
+        }
+    } else {
+        console.log('🕐 Usando zona horaria local');
+        console.log('🕐 Fecha de hoy local:', getLocalTodayString());
+        console.log('🕐 Fecha de mañana local:', getLocalTomorrowString());
+    }
+    
+    console.log('🔍 === FIN DEBUG ===');
+}
+
 // Obtener fecha de hoy en zona horaria específica (formato YYYY-MM-DD)
 function getTodayInTimezone(timezone) {
     try {
@@ -1115,16 +1290,23 @@ function getTodayInTimezone(timezone) {
         // Crear fecha actual
         const now = new Date();
         
-        // Convertir a la zona horaria especificada usando toLocaleString
-        const dateInTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+        // Usar Intl.DateTimeFormat para obtener la fecha en la zona horaria específica
+        const options = { 
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        };
         
-        // Formatear como YYYY-MM-DD
-        const year = dateInTimezone.getFullYear();
-        const month = String(dateInTimezone.getMonth() + 1).padStart(2, '0');
-        const day = String(dateInTimezone.getDate()).padStart(2, '0');
+        const formatter = new Intl.DateTimeFormat('en-CA', options);
+        const parts = formatter.formatToParts(now);
+        
+        const year = parts.find(part => part.type === 'year').value;
+        const month = parts.find(part => part.type === 'month').value;
+        const day = parts.find(part => part.type === 'day').value;
         
         const result = `${year}-${month}-${day}`;
-        console.log('📅 Fecha calculada en timezone:', result);
+        console.log('📅 Fecha calculada en timezone:', result, 'para timezone:', timezone);
         
         return result;
     } catch (error) {

@@ -167,6 +167,74 @@ class AsistenciaController {
         }
     }
 
+    // Cambiar estado de una consulta (nuevo método para ver detalles)
+    static async cambiarEstadoConsulta(req, res) {
+        try {
+            const { consultaId } = req.params;
+            const { estado, notas_profesional } = req.body;
+
+            if (!consultaId || isNaN(consultaId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de consulta inválido'
+                });
+            }
+
+            const validStates = ['activo', 'completado', 'ausente'];
+            if (!estado || !validStates.includes(estado)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Estado de consulta no válido. Debe ser "activo", "completado" o "ausente".'
+                });
+            }
+
+            // Verificar que la consulta existe
+            const checkQuery = `SELECT id, estado FROM consultas WHERE id = ?`;
+            const checkResult = await executeQuery(checkQuery, [consultaId]);
+            
+            if (checkResult.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Consulta no encontrada'
+                });
+            }
+
+            // Actualizar la consulta
+            const updateQuery = `
+                UPDATE consultas
+                SET estado = ?, notas_profesional = ?, actualizado_en = NOW()
+                WHERE id = ?
+            `;
+            const result = await executeQuery(updateQuery, [estado, notas_profesional || null, consultaId]);
+
+            if (result.affectedRows > 0) {
+                console.log(`✅ Consulta ${consultaId} actualizada a estado: ${estado}`);
+                res.json({
+                    success: true,
+                    message: `Estado de consulta ${consultaId} actualizado a ${estado}.`,
+                    data: { 
+                        id: consultaId, 
+                        estado: estado, 
+                        notas_profesional: notas_profesional,
+                        actualizado_en: new Date().toISOString()
+                    }
+                });
+            } else {
+                res.status(500).json({
+                    success: false,
+                    message: 'No se pudo actualizar la consulta'
+                });
+            }
+
+        } catch (error) {
+            console.error('Error cambiando estado de consulta:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error interno del servidor'
+            });
+        }
+    }
+
     // Obtener estadísticas de asistencia
     static async getEstadisticasAsistencia(req, res) {
         try {

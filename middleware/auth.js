@@ -145,21 +145,15 @@ const authenticatePatient = async (usuario, password) => {
     }
 };
 
-// Función principal de autenticación
+// Función principal de autenticación - SOLO PROFESIONALES
 const authenticateUser = async (usuario, password) => {
-    // Primero intentar como profesional
+    // Solo autenticar profesionales
     const professionalAuth = await authenticateProfessional(usuario, password);
     if (professionalAuth.success) {
         return professionalAuth;
     }
 
-    // Si no es profesional, intentar como paciente
-    const patientAuth = await authenticatePatient(usuario, password);
-    if (patientAuth.success) {
-        return patientAuth;
-    }
-
-    // Si ninguno funciona, devolver error genérico
+    // Los pacientes ya no pueden acceder al sistema
     return {
         success: false,
         message: 'Usuario o contraseña incorrectos'

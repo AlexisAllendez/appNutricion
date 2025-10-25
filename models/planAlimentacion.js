@@ -81,7 +81,7 @@ class PlanAlimentacion {
                 FROM ${this.tableName} pa
                 LEFT JOIN plan_asignaciones pa_asignacion ON pa.id = pa_asignacion.plan_id AND pa_asignacion.activo = TRUE
                 LEFT JOIN usuarios u ON pa_asignacion.usuario_id = u.id
-                WHERE pa.profesional_id = ?
+                WHERE pa.profesional_id = ? AND pa.activo = TRUE
                 GROUP BY pa.id
                 ORDER BY pa.creado_en DESC
             `;

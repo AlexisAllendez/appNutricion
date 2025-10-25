@@ -101,10 +101,10 @@ class UsuarioController {
             }
             
             // Validaciones básicas
-            if (!pacienteData.apellido_nombre || !pacienteData.usuario || !pacienteData.contrasena) {
+            if (!pacienteData.apellido_nombre) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Apellido y nombre, usuario y contraseña son obligatorios'
+                    message: 'Apellido y nombre son obligatorios'
                 });
             }
             
@@ -127,9 +127,23 @@ class UsuarioController {
             
             // Manejar errores específicos de MySQL
             if (error.code === 'ER_DUP_ENTRY') {
+                let message = 'Ya existe un paciente con este documento';
+                
+                // Detectar qué campo específico está duplicado
+                if (error.sqlMessage.includes('numero_documento')) {
+                    message = 'Ya existe un paciente con este número de documento';
+                } else if (error.sqlMessage.includes('numero_historia_clinica')) {
+                    message = 'Ya existe un paciente con este número de historia clínica';
+                } else if (error.sqlMessage.includes('email')) {
+                    message = 'Ya existe un paciente con este email';
+                }
+                
                 return res.status(400).json({
                     success: false,
-                    message: 'El usuario o número de documento ya existe'
+                    message: message,
+                    field: error.sqlMessage.includes('numero_documento') ? 'numero_documento' : 
+                           error.sqlMessage.includes('numero_historia_clinica') ? 'numero_historia_clinica' :
+                           error.sqlMessage.includes('email') ? 'email' : null
                 });
             }
             
@@ -362,19 +376,11 @@ class UsuarioController {
                 });
             }
             
-            // Si se crea cuenta, validar usuario y contraseña
-            if (pacienteData.crear_cuenta === true) {
-                if (!pacienteData.usuario || !pacienteData.contrasena) {
-                    return res.status(400).json({
-                        success: false,
-                        message: 'Usuario y contraseña son obligatorios cuando se crea cuenta'
-                    });
-                }
-            } else {
-                // Si no se crea cuenta, no establecer usuario ni contraseña
-                delete pacienteData.usuario;
-                delete pacienteData.contrasena;
-            }
+            // Los pacientes ya no pueden crear cuentas de usuario
+            // Siempre establecer crear_cuenta como false
+            pacienteData.crear_cuenta = false;
+            delete pacienteData.usuario;
+            delete pacienteData.contrasena;
 
             // Crear paciente
             const pacienteId = await Usuario.create(pacienteData);
@@ -382,16 +388,14 @@ class UsuarioController {
             // Invalidar caché del profesional
             pacienteService.invalidateProfesionalCache(profesionalId);
             
-            const message = pacienteData.crear_cuenta === true 
-                ? 'Paciente creado exitosamente con cuenta de usuario'
-                : 'Paciente creado exitosamente (sin cuenta de usuario)';
+            const message = 'Paciente creado exitosamente (sin acceso al sistema)';
             
             res.status(201).json({
                 success: true,
                 message: message,
                 data: { 
                     id: pacienteId,
-                    tiene_cuenta: pacienteData.crear_cuenta === true
+                    tiene_cuenta: false
                 }
             });
             
@@ -400,9 +404,23 @@ class UsuarioController {
             
             // Manejar errores específicos de MySQL
             if (error.code === 'ER_DUP_ENTRY') {
+                let message = 'Ya existe un paciente con este documento';
+                
+                // Detectar qué campo específico está duplicado
+                if (error.sqlMessage.includes('numero_documento')) {
+                    message = 'Ya existe un paciente con este número de documento';
+                } else if (error.sqlMessage.includes('numero_historia_clinica')) {
+                    message = 'Ya existe un paciente con este número de historia clínica';
+                } else if (error.sqlMessage.includes('email')) {
+                    message = 'Ya existe un paciente con este email';
+                }
+                
                 return res.status(400).json({
                     success: false,
-                    message: 'El usuario o número de documento ya existe'
+                    message: message,
+                    field: error.sqlMessage.includes('numero_documento') ? 'numero_documento' : 
+                           error.sqlMessage.includes('numero_historia_clinica') ? 'numero_historia_clinica' :
+                           error.sqlMessage.includes('email') ? 'email' : null
                 });
             }
             

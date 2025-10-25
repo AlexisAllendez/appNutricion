@@ -460,7 +460,7 @@ function showDeleteModal(planId, planName) {
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>
+                            <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
                                 <i class="fas fa-trash me-2"></i>Eliminar Plan
                             </button>
                         </div>
@@ -492,20 +492,11 @@ function showDeleteModal(planId, planName) {
             </ul>
         </div>
         
-        <div class="mb-3">
-            <label for="confirmText" class="form-label">
-                <strong>Para confirmar, escribe "ELIMINAR" en el campo de abajo:</strong>
-            </label>
-            <input type="text" class="form-control" id="confirmText" placeholder="Escribe ELIMINAR para confirmar">
-            <div class="form-text text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                Debes escribir exactamente "ELIMINAR" para poder eliminar el plan
+        <div class="text-center">
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Presiona el botón "Eliminar Plan" para confirmar la eliminación</strong>
             </div>
-        </div>
-        
-        <div id="deleteValidationAlert" class="alert alert-warning" style="display: none;">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <span id="deleteValidationMessage"></span>
         </div>
     `;
     
@@ -519,43 +510,48 @@ function showDeleteModal(planId, planName) {
 
 // Configurar event listeners del modal de eliminación
 function setupDeleteModalListeners(planId) {
-    const confirmBtn = document.getElementById('confirmDeleteBtn');
-    const confirmInput = document.getElementById('confirmText');
-    
-    // Validar texto en tiempo real
-    if (confirmInput) {
-        confirmInput.addEventListener('input', () => {
-            const isValid = confirmInput.value === 'ELIMINAR';
-            confirmBtn.disabled = !isValid;
-            
-            if (isValid) {
-                confirmBtn.classList.remove('btn-secondary');
-                confirmBtn.classList.add('btn-danger');
-            } else {
-                confirmBtn.classList.remove('btn-danger');
-                confirmBtn.classList.add('btn-secondary');
-            }
+    // Esperar un momento para que el DOM se actualice
+    setTimeout(() => {
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        
+        console.log('🔧 Configurando listeners del modal de eliminación:', {
+            confirmBtn: !!confirmBtn,
+            planId: planId
         });
         
-        // Permitir confirmar con Enter
-        confirmInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && confirmInput.value === 'ELIMINAR') {
-                e.preventDefault();
-                confirmBtn.click();
-            }
-        });
-    }
-    
-    // Botón confirmar eliminación
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            if (confirmInput.value === 'ELIMINAR') {
-                confirmDeletePlan(planId);
-            } else {
-                showDeleteValidationAlert('Debes escribir "ELIMINAR" para confirmar la eliminación');
-            }
-        });
-    }
+        // Variable para controlar el estado de confirmación
+        let isFirstClick = true;
+        
+        // Botón confirmar eliminación con doble confirmación
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                if (isFirstClick) {
+                    // Primera vez: cambiar el texto y estilo del botón
+                    isFirstClick = false;
+                    confirmBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>¿Estás seguro? Presiona nuevamente';
+                    confirmBtn.classList.remove('btn-danger');
+                    confirmBtn.classList.add('btn-warning');
+                    
+                    console.log('🔄 Primera confirmación - cambiando botón');
+                    
+                    // Resetear después de 3 segundos si no se presiona nuevamente
+                    setTimeout(() => {
+                        if (!isFirstClick) {
+                            isFirstClick = true;
+                            confirmBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Eliminar Plan';
+                            confirmBtn.classList.remove('btn-warning');
+                            confirmBtn.classList.add('btn-danger');
+                            console.log('⏰ Reset del botón por timeout');
+                        }
+                    }, 3000);
+                } else {
+                    // Segunda vez: proceder con la eliminación
+                    console.log('✅ Segunda confirmación - eliminando plan');
+                    confirmDeletePlan(planId);
+                }
+            });
+        }
+    }, 100);
 }
 
 // Confirmar eliminación del plan
@@ -602,20 +598,11 @@ async function confirmDeletePlan(planId) {
     }
 }
 
-// Mostrar alerta de validación en el modal de eliminación
-function showDeleteValidationAlert(message) {
-    const alert = document.getElementById('deleteValidationAlert');
-    const messageSpan = document.getElementById('deleteValidationMessage');
-    if (alert && messageSpan) {
-        messageSpan.textContent = message;
-        alert.style.display = 'block';
-    }
-}
 
 // Eliminar plan (función principal - ahora solo muestra el modal)
 async function deletePlan(planId) {
     // Obtener nombre del plan para mostrar en el modal
-    const plan = plans.find(p => p.id == planId);
+    const plan = plansData.find(p => p.id == planId);
     const planName = plan ? plan.nombre : 'Plan';
     
     showDeleteModal(planId, planName);

@@ -27,9 +27,6 @@ function initializeEditPatient() {
     // Configurar event listeners
     setupEventListeners();
     
-    // Configurar toggle de usuario
-    setupUsuarioToggle();
-    
     // Configurar validación de formulario
     setupFormValidation();
 }
@@ -59,6 +56,11 @@ async function loadPatientData() {
         const result = await response.json();
         patientData = result.data;
         
+        // Debug: mostrar datos recibidos
+        console.log('Datos del paciente recibidos:', patientData);
+        console.log('Fecha de nacimiento:', patientData.fecha_nacimiento);
+        console.log('Estado civil:', patientData.estado_civil);
+        
         // Llenar el formulario
         populateForm(patientData);
         
@@ -78,13 +80,20 @@ function populateForm(data) {
     document.getElementById('numero_documento').value = data.numero_documento || '';
     document.getElementById('tipo_documento').value = data.tipo_documento || '';
     document.getElementById('numero_historia_clinica').value = data.numero_historia_clinica || '';
-    document.getElementById('fecha_nacimiento').value = data.fecha_nacimiento || '';
+    
+    // Formatear fecha de nacimiento para input type="date"
+    if (data.fecha_nacimiento) {
+        const fechaNacimiento = formatDateForInput(data.fecha_nacimiento);
+        document.getElementById('fecha_nacimiento').value = fechaNacimiento;
+    } else {
+        document.getElementById('fecha_nacimiento').value = '';
+    }
+    
     document.getElementById('sexo').value = data.sexo || '';
     document.getElementById('grupo_sanguineo').value = data.grupo_sanguineo || '';
     document.getElementById('estado_civil').value = data.estado_civil || '';
     
     // Información de contacto
-    document.getElementById('usuario').value = data.usuario || '';
     document.getElementById('email').value = data.email || '';
     document.getElementById('telefono').value = data.telefono || '';
     document.getElementById('ocupacion').value = data.ocupacion || '';
@@ -94,8 +103,22 @@ function populateForm(data) {
     // Información médica
     document.getElementById('obra_social').value = data.obra_social || '';
     document.getElementById('numero_afiliado').value = data.numero_afiliado || '';
-    document.getElementById('fecha_ingreso').value = data.fecha_ingreso || '';
-    document.getElementById('fecha_baja').value = data.fecha_baja || '';
+    
+    // Formatear fechas para input type="date"
+    if (data.fecha_ingreso) {
+        const fechaIngreso = formatDateForInput(data.fecha_ingreso);
+        document.getElementById('fecha_ingreso').value = fechaIngreso;
+    } else {
+        document.getElementById('fecha_ingreso').value = '';
+    }
+    
+    if (data.fecha_baja) {
+        const fechaBaja = formatDateForInput(data.fecha_baja);
+        document.getElementById('fecha_baja').value = fechaBaja;
+    } else {
+        document.getElementById('fecha_baja').value = '';
+    }
+    
     document.getElementById('activo').checked = data.activo !== false;
     
     // Observaciones
@@ -151,13 +174,6 @@ function setupFormValidation() {
         field.addEventListener('blur', validateField);
         field.addEventListener('input', clearFieldError);
     });
-    
-    // Validación de contraseñas
-    const passwordFields = ['nueva_contrasena', 'confirmar_contrasena'];
-    passwordFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        field.addEventListener('input', validatePasswords);
-    });
 }
 
 // Validar campo individual
@@ -184,35 +200,17 @@ function validateField(e) {
     return true;
 }
 
-// Validar contraseñas
-function validatePasswords() {
-    const password = document.getElementById('nueva_contrasena').value;
-    const confirmPassword = document.getElementById('confirmar_contrasena').value;
-    
-    if (password && confirmPassword && password !== confirmPassword) {
-        showFieldError(document.getElementById('confirmar_contrasena'), 'Las contraseñas no coinciden');
-        return false;
-    }
-    
-    if (password && password.length < 6) {
-        showFieldError(document.getElementById('nueva_contrasena'), 'La contraseña debe tener al menos 6 caracteres');
-        return false;
-    }
-    
-    clearFieldError(document.getElementById('nueva_contrasena'));
-    clearFieldError(document.getElementById('confirmar_contrasena'));
-    return true;
-}
-
 // Mostrar error en campo
 function showFieldError(field, message) {
+    if (!field) return;
+    
     field.classList.add('is-invalid');
     
-    let feedback = field.parentNode.querySelector('.invalid-feedback');
+    let feedback = field.parentNode?.querySelector('.invalid-feedback');
     if (!feedback) {
         feedback = document.createElement('div');
         feedback.className = 'invalid-feedback';
-        field.parentNode.appendChild(feedback);
+        field.parentNode?.appendChild(feedback);
     }
     
     feedback.textContent = message;
@@ -220,8 +218,10 @@ function showFieldError(field, message) {
 
 // Limpiar error de campo
 function clearFieldError(field) {
+    if (!field) return;
+    
     field.classList.remove('is-invalid');
-    const feedback = field.parentNode.querySelector('.invalid-feedback');
+    const feedback = field.parentNode?.querySelector('.invalid-feedback');
     if (feedback) {
         feedback.remove();
     }
@@ -239,17 +239,43 @@ function isValidDocument(doc) {
     return docRegex.test(doc);
 }
 
+// Formatear fecha para input type="date"
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    
+    try {
+        // Si ya está en formato YYYY-MM-DD, devolverlo tal como está
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString;
+        }
+        
+        // Si está en formato DD/MM/YYYY o DD-MM-YYYY, convertir
+        if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(dateString)) {
+            const parts = dateString.split(/[\/\-]/);
+            const day = parts[0];
+            const month = parts[1];
+            const year = parts[2];
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        
+        // Si es un objeto Date o timestamp, convertir
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+        }
+        
+        return '';
+    } catch (error) {
+        console.warn('Error formateando fecha:', dateString, error);
+        return '';
+    }
+}
+
 // Guardar paciente
 async function savePatient() {
     try {
         // Validar formulario
         if (!validateForm()) {
-            return;
-        }
-        
-        // Validar campos de usuario si es necesario
-        if (!validateUsuarioFields()) {
-            showError('Por favor, complete los campos de usuario requeridos');
             return;
         }
         
@@ -312,11 +338,6 @@ function validateForm() {
         }
     });
     
-    // Validar contraseñas
-    if (!validatePasswords()) {
-        isValid = false;
-    }
-    
     return isValid;
 }
 
@@ -330,7 +351,7 @@ function getFormData() {
     // Campos de texto
     const textFields = [
         'apellido_nombre', 'numero_documento', 'tipo_documento', 'numero_historia_clinica',
-        'fecha_nacimiento', 'sexo', 'grupo_sanguineo', 'estado_civil', 'usuario',
+        'fecha_nacimiento', 'sexo', 'grupo_sanguineo', 'estado_civil',
         'email', 'telefono', 'ocupacion', 'domicilio', 'localidad', 'obra_social',
         'numero_afiliado', 'fecha_ingreso', 'fecha_baja', 'observaciones'
     ];
@@ -344,12 +365,6 @@ function getFormData() {
     
     // Campo booleano
     data.activo = document.getElementById('activo').checked;
-    
-    // Contraseña (solo si se proporciona)
-    const nuevaContrasena = formData.get('nueva_contrasena');
-    if (nuevaContrasena) {
-        data.contrasena = nuevaContrasena;
-    }
     
     return data;
 }
@@ -477,105 +492,4 @@ function showSuccessWithNavigation(message) {
             document.body.removeChild(modal);
         }
     });
-}
-
-// Setup usuario toggle functionality
-function setupUsuarioToggle() {
-    const crearCuentaCheckbox = document.getElementById('crearCuenta');
-    const camposUsuario = document.getElementById('camposUsuario');
-    const usuarioInput = document.getElementById('usuario');
-    const contrasenaInput = document.getElementById('contrasena');
-    
-    if (!crearCuentaCheckbox || !camposUsuario || !usuarioInput || !contrasenaInput) {
-        console.warn('Elementos de usuario no encontrados');
-        return;
-    }
-    
-    // Event listener para el checkbox
-    crearCuentaCheckbox.addEventListener('change', toggleUsuarioFields);
-    
-    // Inicializar estado basado en si el paciente ya tiene usuario
-    initializeUsuarioState();
-}
-
-// Toggle usuario fields visibility and requirements
-function toggleUsuarioFields() {
-    const crearCuentaCheckbox = document.getElementById('crearCuenta');
-    const camposUsuario = document.getElementById('camposUsuario');
-    const usuarioInput = document.getElementById('usuario');
-    const contrasenaInput = document.getElementById('contrasena');
-    
-    const isChecked = crearCuentaCheckbox.checked;
-    
-    if (isChecked) {
-        camposUsuario.classList.remove('disabled');
-        usuarioInput.required = true;
-        contrasenaInput.required = true;
-        usuarioInput.disabled = false;
-        contrasenaInput.disabled = false;
-    } else {
-        camposUsuario.classList.add('disabled');
-        usuarioInput.required = false;
-        contrasenaInput.required = false;
-        usuarioInput.disabled = true;
-        contrasenaInput.disabled = true;
-        usuarioInput.value = '';
-        contrasenaInput.value = '';
-    }
-}
-
-// Initialize usuario state based on existing patient data
-function initializeUsuarioState() {
-    const crearCuentaCheckbox = document.getElementById('crearCuenta');
-    const usuarioInput = document.getElementById('usuario');
-    
-    if (patientData && patientData.usuario) {
-        // Si el paciente ya tiene usuario, marcar como creado y deshabilitar
-        crearCuentaCheckbox.checked = true;
-        crearCuentaCheckbox.disabled = true;
-        usuarioInput.value = patientData.usuario;
-        usuarioInput.readOnly = true;
-        
-        // Agregar texto informativo
-        const label = crearCuentaCheckbox.nextElementSibling;
-        label.innerHTML = `
-            <strong>Cuenta de usuario existente</strong>
-            <small class="text-muted d-block">El paciente ya tiene una cuenta de usuario: ${patientData.usuario}</small>
-        `;
-    } else {
-        // Si no tiene usuario, permitir crear uno nuevo
-        crearCuentaCheckbox.checked = false;
-        toggleUsuarioFields();
-    }
-}
-
-// Validate usuario fields
-function validateUsuarioFields() {
-    const crearCuentaCheckbox = document.getElementById('crearCuenta');
-    const usuarioInput = document.getElementById('usuario');
-    const contrasenaInput = document.getElementById('contrasena');
-    
-    if (!crearCuentaCheckbox.checked) {
-        return true; // No validation needed if not creating account
-    }
-    
-    let isValid = true;
-    
-    // Validate usuario
-    if (!usuarioInput.value.trim()) {
-        usuarioInput.classList.add('is-invalid');
-        isValid = false;
-    } else {
-        usuarioInput.classList.remove('is-invalid');
-    }
-    
-    // Validate contrasena
-    if (!contrasenaInput.value.trim()) {
-        contrasenaInput.classList.add('is-invalid');
-        isValid = false;
-    } else {
-        contrasenaInput.classList.remove('is-invalid');
-    }
-    
-    return isValid;
 }

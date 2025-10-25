@@ -81,10 +81,8 @@ async function handleLogin(event) {
             setTimeout(() => {
                 if (result.data.user.rol === 'profesional') {
                     window.location.href = '/dashboard/professional';
-                } else if (result.data.user.rol === 'paciente') {
-                    window.location.href = '/dashboard/patient';
                 } else {
-                    showAlert('Rol de usuario no reconocido', 'error');
+                    showAlert('Solo los profesionales pueden acceder al sistema', 'error');
                 }
             }, 1500);
         } else {
@@ -170,24 +168,6 @@ style.textContent = `
         }
     }
     
-    /* Patient login styling */
-    .patient-login .login-card {
-        border-left: 4px solid #28a745;
-    }
-    
-    .patient-login .logo-icon {
-        color: #28a745 !important;
-    }
-    
-    .patient-login .btn-primary {
-        background-color: #28a745;
-        border-color: #28a745;
-    }
-    
-    .patient-login .btn-primary:hover {
-        background-color: #218838;
-        border-color: #1e7e34;
-    }
     
     /* Professional login styling */
     .professional-login .login-card {

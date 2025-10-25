@@ -21,8 +21,7 @@ function initializeNewPatient() {
     // Configurar fecha de ingreso como hoy
     setTodayAsDefaultDate();
     
-    // Inicializar funcionalidad del toggle de usuario
-    initializeUsuarioToggle();
+    // Los pacientes ya no pueden crear cuentas de usuario - solo profesionales pueden acceder
     
     // Mostrar contenido principal
     showMainContent();
@@ -75,10 +74,6 @@ function setupFormValidation() {
         field.addEventListener('input', clearFieldError);
     });
     
-    // Validación de contraseña
-    const passwordField = document.getElementById('contrasena');
-    passwordField.addEventListener('input', validatePassword);
-    
     // Validación de email
     const emailField = document.getElementById('email');
     emailField.addEventListener('blur', validateEmail);
@@ -87,9 +82,9 @@ function setupFormValidation() {
     const docField = document.getElementById('numero_documento');
     docField.addEventListener('blur', validateDocument);
     
-    // Validación de usuario único
-    const userField = document.getElementById('usuario');
-    userField.addEventListener('blur', validateUserUnique);
+    // Validación de número de historia clínica
+    const hcField = document.getElementById('numero_historia_clinica');
+    hcField.addEventListener('blur', validateHistoriaClinica);
 }
 
 // Validar campo individual
@@ -113,19 +108,6 @@ function validateField(e) {
     }
     
     clearFieldError(field);
-    return true;
-}
-
-// Validar contraseña
-function validatePassword() {
-    const password = document.getElementById('contrasena').value;
-    
-    if (password && password.length < 6) {
-        showFieldError(document.getElementById('contrasena'), 'La contraseña debe tener al menos 6 caracteres');
-        return false;
-    }
-    
-    clearFieldError(document.getElementById('contrasena'));
     return true;
 }
 
@@ -155,50 +137,30 @@ function validateDocument() {
     return true;
 }
 
-// Validar usuario único
-async function validateUserUnique() {
-    const user = document.getElementById('usuario').value;
+// Validar número de historia clínica
+function validateHistoriaClinica() {
+    const hc = document.getElementById('numero_historia_clinica').value;
     
-    if (!user) {
-        clearFieldError(document.getElementById('usuario'));
-        return true;
+    if (hc && !isValidHistoriaClinica(hc)) {
+        showFieldError(document.getElementById('numero_historia_clinica'), 'Ingrese un número de historia clínica válido');
+        return false;
     }
     
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/usuarios/check-user/${user}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const result = await response.json();
-            if (result.exists) {
-                showFieldError(document.getElementById('usuario'), 'Este nombre de usuario ya está en uso');
-                return false;
-            } else {
-                clearFieldError(document.getElementById('usuario'));
-                return true;
-            }
-        }
-    } catch (error) {
-        console.error('Error verificando usuario:', error);
-    }
-    
+    clearFieldError(document.getElementById('numero_historia_clinica'));
     return true;
 }
 
 // Mostrar error en campo
 function showFieldError(field, message) {
+    if (!field) return;
+    
     field.classList.add('is-invalid');
     
-    let feedback = field.parentNode.querySelector('.invalid-feedback');
+    let feedback = field.parentNode?.querySelector('.invalid-feedback');
     if (!feedback) {
         feedback = document.createElement('div');
         feedback.className = 'invalid-feedback';
-        field.parentNode.appendChild(feedback);
+        field.parentNode?.appendChild(feedback);
     }
     
     feedback.textContent = message;
@@ -206,8 +168,10 @@ function showFieldError(field, message) {
 
 // Limpiar error de campo
 function clearFieldError(field) {
+    if (!field) return;
+    
     field.classList.remove('is-invalid');
-    const feedback = field.parentNode.querySelector('.invalid-feedback');
+    const feedback = field.parentNode?.querySelector('.invalid-feedback');
     if (feedback) {
         feedback.remove();
     }
@@ -223,6 +187,13 @@ function isValidEmail(email) {
 function isValidDocument(doc) {
     const docRegex = /^[0-9]{7,8}$/;
     return docRegex.test(doc);
+}
+
+// Validar número de historia clínica
+function isValidHistoriaClinica(hc) {
+    // Permitir formato como HC001, HC0001, etc.
+    const hcRegex = /^HC[0-9]{3,4}$/i;
+    return hcRegex.test(hc);
 }
 
 // Establecer fecha de hoy como fecha de ingreso por defecto
@@ -261,6 +232,17 @@ async function savePatient() {
         
         if (!response.ok) {
             const errorData = await response.json();
+            
+            // Si hay un campo específico con error, marcarlo
+            if (errorData.field) {
+                const field = document.getElementById(errorData.field);
+                if (field) {
+                    showFieldError(field, errorData.message);
+                    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(() => field.focus(), 500);
+                }
+            }
+            
             throw new Error(errorData.message || 'Error al crear el paciente');
         }
         
@@ -286,7 +268,6 @@ async function savePatient() {
 // Validar formulario completo
 function validateForm() {
     const form = document.getElementById('newPatientForm');
-    const crearCuenta = document.getElementById('crearCuenta').checked;
     let isValid = true;
     let firstErrorField = null;
     
@@ -325,44 +306,6 @@ function validateForm() {
         }
     }
     
-    // Validar campos de usuario y contraseña solo si se crea cuenta
-    if (crearCuenta) {
-        const usuarioField = document.getElementById('usuario');
-        const contrasenaField = document.getElementById('contrasena');
-        
-        if (usuarioField) {
-            const usuario = usuarioField.value.trim();
-            if (!usuario) {
-                showFieldError(usuarioField, 'Usuario es obligatorio cuando se crea cuenta');
-                if (!firstErrorField) {
-                    firstErrorField = usuarioField;
-                }
-                isValid = false;
-            } else {
-                clearFieldError(usuarioField);
-            }
-        }
-        
-        if (contrasenaField) {
-            const contrasena = contrasenaField.value.trim();
-            if (!contrasena) {
-                showFieldError(contrasenaField, 'Contraseña es obligatoria cuando se crea cuenta');
-                if (!firstErrorField) {
-                    firstErrorField = contrasenaField;
-                }
-                isValid = false;
-            } else if (contrasena.length < 6) {
-                showFieldError(contrasenaField, 'La contraseña debe tener al menos 6 caracteres');
-                if (!firstErrorField) {
-                    firstErrorField = contrasenaField;
-                }
-                isValid = false;
-            } else {
-                clearFieldError(contrasenaField);
-            }
-        }
-    }
-    
     // Validar formato de email
     const emailField = document.getElementById('email');
     if (emailField && emailField.value.trim()) {
@@ -382,6 +325,18 @@ function validateForm() {
             showFieldError(docField, 'Formato de documento inválido (solo números, 7-8 dígitos)');
             if (!firstErrorField) {
                 firstErrorField = docField;
+            }
+            isValid = false;
+        }
+    }
+    
+    // Validar formato de número de historia clínica
+    const hcField = document.getElementById('numero_historia_clinica');
+    if (hcField && hcField.value.trim()) {
+        if (!isValidHistoriaClinica(hcField.value.trim())) {
+            showFieldError(hcField, 'Formato de historia clínica inválido (ejemplo: HC001)');
+            if (!firstErrorField) {
+                firstErrorField = hcField;
             }
             isValid = false;
         }
@@ -593,19 +548,9 @@ function getFormData() {
         }
     });
     
-    // Campos de usuario y contraseña (solo si se crea cuenta)
-    const crearCuenta = document.getElementById('crearCuenta').checked;
-    if (crearCuenta) {
-        const usuario = formData.get('usuario');
-        const contrasena = formData.get('contrasena');
-        
-        if (usuario) data.usuario = usuario;
-        if (contrasena) data.contrasena = contrasena;
-    }
-    
     // Campo booleano
     data.activo = document.getElementById('activo').checked;
-    data.crear_cuenta = crearCuenta;
+    data.crear_cuenta = false; // Los pacientes ya no pueden crear cuentas
     
     return data;
 }
@@ -666,7 +611,8 @@ function showError(message) {
                             • Verifique que todos los campos obligatorios estén completos<br>
                             • Asegúrese de que el email tenga un formato válido<br>
                             • El número de documento debe contener solo números<br>
-                            • Si crea cuenta, el usuario debe ser único
+                            • Verifique que el número de documento no esté duplicado<br>
+                            • El número de historia clínica debe ser único
                         </small>
                     </div>
                 </div>
@@ -775,39 +721,4 @@ function showSuccessWithNavigation(message) {
             document.body.removeChild(modal);
         }
     });
-}
-
-// Inicializar funcionalidad del toggle de usuario
-function initializeUsuarioToggle() {
-    const crearCuentaCheckbox = document.getElementById('crearCuenta');
-    const camposUsuario = document.getElementById('camposUsuario');
-    const usuarioInput = document.getElementById('usuario');
-    const contrasenaInput = document.getElementById('contrasena');
-    
-    // Función para toggle de campos
-    function toggleUsuarioFields() {
-        const isChecked = crearCuentaCheckbox.checked;
-        
-        if (isChecked) {
-            camposUsuario.classList.remove('disabled');
-            usuarioInput.required = true;
-            contrasenaInput.required = true;
-            usuarioInput.disabled = false;
-            contrasenaInput.disabled = false;
-        } else {
-            camposUsuario.classList.add('disabled');
-            usuarioInput.required = false;
-            contrasenaInput.required = false;
-            usuarioInput.disabled = true;
-            contrasenaInput.disabled = true;
-            usuarioInput.value = '';
-            contrasenaInput.value = '';
-        }
-    }
-    
-    // Event listener para el checkbox
-    crearCuentaCheckbox.addEventListener('change', toggleUsuarioFields);
-    
-    // Inicializar estado
-    toggleUsuarioFields();
 }

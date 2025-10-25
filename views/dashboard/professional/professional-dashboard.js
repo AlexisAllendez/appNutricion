@@ -304,9 +304,6 @@ function loadSectionContent(sectionName) {
         case 'planes':
             loadPlanesContent();
             break;
-        case 'registro-comidas':
-            loadRegistroComidasContent();
-            break;
         case 'asistencia':
             loadAsistenciaContent();
             break;
@@ -2261,11 +2258,6 @@ function openPlanEditor(planId) {
 }
 
 // Load mensajes content
-function loadRegistroComidasContent() {
-    // La funcionalidad de registro de comidas se maneja en el archivo registro-comidas.js
-    // que se carga automáticamente cuando se muestra la sección
-    console.log('Registro de comidas content loaded');
-}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -2313,15 +2305,6 @@ function setupEventListeners() {
         planesLink.addEventListener('click', function(e) {
             e.preventDefault();
             showSection('planes');
-        });
-    }
-    
-    // Registro de Comidas button
-    const registroComidasLink = document.getElementById('registroComidasLink');
-    if (registroComidasLink) {
-        registroComidasLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            showSection('registro-comidas');
         });
     }
     
@@ -3798,6 +3781,60 @@ async function guardarNuevaConsulta() {
     }
 }
 
+// Función para mostrar el modal de nueva consulta general (sin paciente específico)
+function showNewConsultation() {
+    // Asegurar que el modal existe
+    if (!document.getElementById('modalNuevaConsulta')) {
+        agregarModalNuevaConsulta();
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalNuevaConsulta'));
+    
+    // Limpiar formulario
+    document.getElementById('formNuevaConsulta').reset();
+    
+    // Configurar para selección libre (NO bloquear)
+    const tipoPacienteSelect = document.getElementById('tipoPaciente');
+    tipoPacienteSelect.disabled = false; // Permitir selección libre
+    tipoPacienteSelect.style.backgroundColor = ''; // Color normal
+    tipoPacienteSelect.value = ''; // Sin selección inicial
+    
+    // Asegurar que el campo de paciente también esté habilitado
+    const pacienteSelect = document.getElementById('pacienteConsulta');
+    if (pacienteSelect) {
+        pacienteSelect.disabled = false; // Permitir selección libre
+        pacienteSelect.style.backgroundColor = ''; // Color normal
+    }
+    
+    // Ocultar todos los contenedores inicialmente
+    document.getElementById('pacienteRegistradoContainer').style.display = 'none';
+    document.getElementById('pacienteExternoContainer').style.display = 'none';
+    document.getElementById('datosExternosContainer').style.display = 'none';
+    
+    // Configurar fecha mínima (hoy)
+    const fechaInput = document.getElementById('fechaConsulta');
+    const hoy = new Date().toLocaleDateString('en-CA');
+    fechaInput.min = hoy;
+    fechaInput.value = hoy;
+    
+    // Cargar horarios disponibles para hoy
+    cargarHorariosDisponibles(hoy);
+    
+    // Actualizar título del modal
+    document.getElementById('modalNuevaConsultaLabel').innerHTML = 
+        `<i class="fas fa-plus-circle me-2"></i>Nueva Consulta`;
+    
+    // Mostrar modal
+    console.log('🎭 Mostrando modal general...');
+    modal.show();
+    console.log('✅ Modal.show() ejecutado');
+    
+    // Event listener para cambio de fecha
+    fechaInput.addEventListener('change', function() {
+        cargarHorariosDisponibles(this.value);
+    });
+}
+
 // Función para mostrar el modal de nueva consulta para un paciente específico
 function mostrarModalNuevaConsultaParaPaciente(patientId, paciente) {
     // Asegurar que el modal existe
@@ -3810,16 +3847,23 @@ function mostrarModalNuevaConsultaParaPaciente(patientId, paciente) {
     // Limpiar formulario
     document.getElementById('formNuevaConsulta').reset();
     
-    // Configurar para paciente registrado
-    document.getElementById('tipoPaciente').value = 'registrado';
+    // Configurar para paciente registrado y BLOQUEAR la selección
+    const tipoPacienteSelect = document.getElementById('tipoPaciente');
+    tipoPacienteSelect.value = 'registrado';
+    tipoPacienteSelect.disabled = true; // BLOQUEAR la selección
+    tipoPacienteSelect.style.backgroundColor = '#f8f9fa'; // Color gris para indicar que está bloqueado
+    
     document.getElementById('pacienteRegistradoContainer').style.display = 'block';
     document.getElementById('pacienteExternoContainer').style.display = 'none';
     document.getElementById('datosExternosContainer').style.display = 'none';
     
-    // Cargar pacientes y seleccionar el actual
+    // Cargar pacientes y seleccionar el actual, luego BLOQUEAR la selección
     cargarPacientes();
     setTimeout(() => {
-        document.getElementById('pacienteConsulta').value = patientId;
+        const pacienteSelect = document.getElementById('pacienteConsulta');
+        pacienteSelect.value = patientId;
+        pacienteSelect.disabled = true; // BLOQUEAR la selección de paciente
+        pacienteSelect.style.backgroundColor = '#f8f9fa'; // Color gris para indicar que está bloqueado
     }, 100);
     
     // Configurar fecha mínima (hoy)
