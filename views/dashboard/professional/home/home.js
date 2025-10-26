@@ -12,6 +12,9 @@ async function initializeHomeSection() {
     // Configurar event listeners
     setupHomeEventListeners();
     
+    // Cargar zona horaria del profesional
+    await loadProfessionalTimezone();
+    
     // Cargar datos de estadísticas - DESHABILITADO
     // await loadHomeStatistics();
     
@@ -32,6 +35,30 @@ async function initializeHomeSection() {
 
 // Variable global para almacenar la zona horaria del profesional
 let professionalTimezone = 'UTC';
+
+// Cargar zona horaria del profesional
+async function loadProfessionalTimezone() {
+    try {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const token = localStorage.getItem('token');
+        
+        if (!userData || !userData.id || !token) {
+            console.warn('⚠️ No hay datos de usuario o token, usando zona horaria por defecto');
+            professionalTimezone = 'UTC';
+            return;
+        }
+        
+        console.log('🕐 Cargando zona horaria del profesional...');
+        const professionalInfo = await fetchProfessionalInfo(userData.id, token);
+        
+        professionalTimezone = professionalInfo.timezone || 'UTC';
+        console.log('✅ Zona horaria del profesional cargada:', professionalTimezone);
+        
+    } catch (error) {
+        console.error('❌ Error cargando zona horaria del profesional:', error);
+        professionalTimezone = 'UTC';
+    }
+}
 
 // Cargar estadísticas principales - DESHABILITADO
 /*
@@ -572,23 +599,49 @@ async function loadUpcomingAppointments() {
         debugTimezoneInfo(professionalTimezone);
         
         // Obtener citas de los próximos 7 días usando la zona horaria del profesional
-        const today = getTodayInTimezone(professionalTimezone);
         const appointments = [];
         
-        // Buscar citas para cada uno de los próximos 7 días
+        // Buscar citas para cada uno de los próximos 7 días usando la zona horaria del profesional
         for (let i = 0; i < 7; i++) {
-            // Calcular fecha de forma simple y directa (igual que la agenda)
-            const today = new Date();
-            const targetDate = new Date(today);
-            targetDate.setDate(today.getDate() + i);
+            // Calcular fecha usando la zona horaria del profesional
+            let dateString;
             
-            // Formatear fecha en formato YYYY-MM-DD para la consulta
-            const dateString = targetDate.toISOString().split('T')[0];
+            if (professionalTimezone && professionalTimezone !== 'UTC') {
+                try {
+                    const now = new Date();
+                    const targetDate = new Date(now);
+                    targetDate.setDate(now.getDate() + i);
+                    
+                    // Obtener la fecha en la zona horaria del profesional
+                    const options = { 
+                        timeZone: professionalTimezone,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    };
+                    
+                    const formatter = new Intl.DateTimeFormat('en-CA', options);
+                    const parts = formatter.formatToParts(targetDate);
+                    
+                    const year = parts.find(part => part.type === 'year').value;
+                    const month = parts.find(part => part.type === 'month').value;
+                    const day = parts.find(part => part.type === 'day').value;
+                    
+                    dateString = `${year}-${month}-${day}`;
+                } catch (error) {
+                    console.warn('⚠️ Error calculando fecha con timezone, usando fallback:', error);
+                    const targetDate = new Date();
+                    targetDate.setDate(targetDate.getDate() + i);
+                    dateString = targetDate.toISOString().split('T')[0];
+                }
+            } else {
+                // Fallback a fecha local si no hay timezone configurada
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + i);
+                dateString = targetDate.toISOString().split('T')[0];
+            }
             
-            console.log(`📅 Día ${i + 1}: Buscando citas para ${dateString}`);
-            console.log(`📅 Fecha base: ${today.toISOString()}`);
-            console.log(`📅 Fecha calculada: ${targetDate.toISOString()}`);
-            console.log(`📅 Fecha formateada: ${dateString}`);
+            console.log(`📅 Día ${i + 1}: Buscando citas para ${dateString} (timezone: ${professionalTimezone})`);
             
             try {
                 const response = await fetch(`/api/agenda/profesional/${userData.id}/consultas/fecha/${dateString}`, {
@@ -601,14 +654,14 @@ async function loadUpcomingAppointments() {
                     
                     // Filtrar solo citas futuras para hoy, todas para otros días
                     if (i === 0) {
-                        // Para hoy, solo mostrar citas futuras
-                        const now = new Date();
+                        // Para hoy, solo mostrar citas futuras usando la hora actual en la zona horaria del profesional
+                        const nowInTimezone = getCurrentTimeInTimezone(professionalTimezone);
                         const filteredAppointments = dayAppointments.filter(apt => {
                             const appointmentDateTime = new Date(`${dateString}T${apt.hora}`);
-                            return appointmentDateTime > now;
+                            return appointmentDateTime > nowInTimezone;
                         });
                         appointments.push(...filteredAppointments);
-                        console.log(`📅 Hoy: ${filteredAppointments.length} citas futuras de ${dayAppointments.length} total`);
+                        console.log(`📅 Hoy: ${filteredAppointments.length} citas futuras de ${dayAppointments.length} total (hora actual: ${nowInTimezone.toISOString()})`);
                     } else {
                         // Para otros días, mostrar todas las citas
                         appointments.push(...dayAppointments);
@@ -1004,15 +1057,56 @@ function getEndOfWeekInTimezone(timezone) {
 // Actualizar fecha y hora actual
 function startDateTimeUpdates() {
     updateDateTime();
-    updateDateTimeInterval = setInterval(updateDateTime, 60000); // Actualizar cada minuto
+    updateDateTimeInterval = setInterval(updateDateTime, 1000); // Actualizar cada segundo
 }
 
 function updateDateTime() {
-    const now = dayjs();
     const dateTimeElement = document.getElementById('currentDateTime');
     
     if (dateTimeElement) {
-        dateTimeElement.textContent = now.format('DD/MM/YYYY - HH:mm');
+        let formattedDateTime;
+        
+        // Si hay zona horaria configurada y no es UTC, usarla
+        if (professionalTimezone && professionalTimezone !== 'UTC') {
+            try {
+                const now = new Date();
+                
+                // Crear formato para la zona horaria del profesional
+                const options = { 
+                    timeZone: professionalTimezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                };
+                
+                const formatter = new Intl.DateTimeFormat('es-ES', options);
+                const parts = formatter.formatToParts(now);
+                
+                const year = parts.find(part => part.type === 'year').value;
+                const month = parts.find(part => part.type === 'month').value;
+                const day = parts.find(part => part.type === 'day').value;
+                const hour = parts.find(part => part.type === 'hour').value;
+                const minute = parts.find(part => part.type === 'minute').value;
+                const second = parts.find(part => part.type === 'second').value;
+                
+                formattedDateTime = `${day}/${month}/${year} - ${hour}:${minute}:${second}`;
+            } catch (error) {
+                console.warn('⚠️ Error formateando fecha con timezone, usando fecha local:', error);
+                // Fallback a fecha local
+                const now = dayjs();
+                formattedDateTime = now.format('DD/MM/YYYY - HH:mm:ss');
+            }
+        } else {
+            // Usar fecha local con dayjs
+            const now = dayjs();
+            formattedDateTime = now.format('DD/MM/YYYY - HH:mm:ss');
+        }
+        
+        dateTimeElement.textContent = formattedDateTime;
     }
 }
 
@@ -1119,22 +1213,18 @@ function getTimePeriod(timeString) {
 
 // Formatear fecha de cita de manera legible usando zona horaria del profesional
 function formatAppointmentDate(dateString) {
-    // La fecha viene en formato YYYY-MM-DD
+    // La fecha viene en formato YYYY-MM-DD (en UTC desde el backend)
     const dateOnly = dateString.split('T')[0]; // Asegurar que solo tomamos la parte de fecha
     
-    // Crear fechas de comparación en formato YYYY-MM-DD
-    const today = new Date();
-    const todayOnly = today.toISOString().split('T')[0];
+    // Obtener fecha de hoy en la zona horaria del profesional
+    const today = getTodayInTimezone(professionalTimezone);
+    const tomorrow = getTomorrowInTimezone(professionalTimezone);
     
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const tomorrowOnly = tomorrow.toISOString().split('T')[0];
+    console.log(`📅 Comparando fechas: ${dateOnly} vs ${today} (hoy en timezone) vs ${tomorrow} (mañana en timezone)`);
     
-    console.log(`📅 Comparando fechas: ${dateOnly} vs ${todayOnly} vs ${tomorrowOnly}`);
-    
-    if (dateOnly === todayOnly) {
+    if (dateOnly === today) {
         return 'Hoy';
-    } else if (dateOnly === tomorrowOnly) {
+    } else if (dateOnly === tomorrow) {
         return 'Mañana';
     } else {
         // Formatear fecha para otros días usando la fecha original
@@ -1376,6 +1466,45 @@ function isSameLocalDate(date1, date2) {
            d1.getDate() === d2.getDate();
 }
 
+// Obtener hora actual en una zona horaria específica
+function getCurrentTimeInTimezone(timezone) {
+    try {
+        const now = new Date();
+        
+        if (!timezone || timezone === 'UTC') {
+            return now;
+        }
+        
+        // Obtener hora actual en la zona horaria especificada
+        const options = { 
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        };
+        
+        const formatter = new Intl.DateTimeFormat('en-CA', options);
+        const parts = formatter.formatToParts(now);
+        
+        const year = parseInt(parts.find(part => part.type === 'year').value);
+        const month = parseInt(parts.find(part => part.type === 'month').value) - 1;
+        const day = parseInt(parts.find(part => part.type === 'day').value);
+        const hour = parseInt(parts.find(part => part.type === 'hour').value);
+        const minute = parseInt(parts.find(part => part.type === 'minute').value);
+        const second = parseInt(parts.find(part => part.type === 'second').value);
+        
+        // Crear fecha en UTC con los valores de la zona horaria
+        return new Date(Date.UTC(year, month, day, hour, minute, second));
+    } catch (error) {
+        console.warn('⚠️ Error obteniendo hora actual en timezone, usando fecha local:', error);
+        return new Date();
+    }
+}
+
 // Verificar si una fecha es hoy en zona horaria específica
 function isTodayInTimezone(dateString, timezone) {
     try {
@@ -1429,6 +1558,15 @@ function isTomorrowLocal(dateString) {
     return tomorrow.getFullYear() === targetDate.getFullYear() &&
            tomorrow.getMonth() === targetDate.getMonth() &&
            tomorrow.getDate() === targetDate.getDate();
+}
+
+// Función global para actualizar la zona horaria (llamada desde other files)
+window.updateProfessionalTimezoneGlobal = function(newTimezone) {
+    professionalTimezone = newTimezone;
+    console.log('✅ Zona horaria actualizada globalmente:', professionalTimezone);
+    
+    // Reload appointments to reflect new timezone
+    loadUpcomingAppointments();
 }
 
 // Exportar funciones principales

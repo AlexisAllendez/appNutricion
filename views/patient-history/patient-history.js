@@ -2,6 +2,7 @@
 
 // Global variables for consultation modal
 let profesionalId = null;
+let profesionalesTimezone = 'UTC'; // Global timezone del profesional
 let pacientes = [];
 let horariosDisponibles = [];
 let currentPatient = null; // Store current patient data for export
@@ -41,6 +42,9 @@ function initPatientHistory() {
     
     // Check if we should go to nutrition tab (coming from plan creator)
     checkForNutritionRedirect();
+    
+    // Load professional timezone
+    loadProfessionalTimezone();
     
     loadPatientData();
     loadProfessionalName();
@@ -86,6 +90,39 @@ function checkForNutritionRedirect() {
                 console.log('❌ Nutrition tab not found');
             }
         }, 500);
+    }
+}
+
+// Load professional timezone
+async function loadProfessionalTimezone() {
+    try {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        if (userData && userData.timezone) {
+            profesionalesTimezone = userData.timezone;
+            console.log('✅ Zona horaria del profesional cargada:', profesionalesTimezone);
+        } else {
+            // Intentar obtener desde la API
+            const token = localStorage.getItem('token');
+            if (token && profesionalId) {
+                const response = await fetch(`/api/profesionales/${profesionalId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.data && data.data.timezone) {
+                        profesionalesTimezone = data.data.timezone;
+                        console.log('✅ Zona horaria cargada desde API:', profesionalesTimezone);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ Error cargando zona horaria del profesional:', error);
+        // Usar UTC por defecto
     }
 }
 
@@ -4349,7 +4386,7 @@ function createConsultaRow(consulta) {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: 'America/Argentina/Buenos_Aires'
+        timeZone: profesionalesTimezone
     });
 
     // Format time
@@ -4540,7 +4577,7 @@ function renderConsultaDetalles(consulta) {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-        timeZone: 'America/Argentina/Buenos_Aires'
+        timeZone: profesionalesTimezone
     });
 
     // Format time
@@ -4674,7 +4711,7 @@ function formatDateTime(dateTimeString) {
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        timeZone: 'America/Argentina/Buenos_Aires'
+        timeZone: profesionalesTimezone
     });
 }
 

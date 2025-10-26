@@ -23,6 +23,9 @@ router.post('/', authenticateToken, ConsultaController.createConsulta);
 // Actualizar consulta existente
 router.put('/:id', authenticateToken, ConsultaController.updateConsulta);
 
+// Reprogramar consulta
+router.put('/:id/reprogramar', authenticateToken, ConsultaController.reprogramarConsulta);
+
 // Completar consulta
 router.put('/:id/completar', authenticateToken, ConsultaController.completarConsulta);
 

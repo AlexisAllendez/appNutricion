@@ -1,5 +1,8 @@
 const Consulta = require('../models/consulta');
+const Usuario = require('../models/usuario');
+const Profesional = require('../models/profesional');
 const cacheService = require('../service/cacheService');
+const EmailService = require('../service/emailService');
 
 class ConsultaController {
     // Obtener consultas/turnos de un profesional con filtros
@@ -394,7 +397,7 @@ class ConsultaController {
     static async cancelarConsulta(req, res) {
         try {
             const { id } = req.params;
-            const { codigo_cancelacion } = req.body;
+            const { codigo_cancelacion, motivo } = req.body;
             
             if (!id || isNaN(id)) {
                 return res.status(400).json({ 
@@ -433,8 +436,21 @@ class ConsultaController {
                 });
             }
 
+            // Obtener datos del paciente y profesional para el email
+            let paciente = null;
+            let profesional = null;
+
+            if (consulta.usuario_id) {
+                paciente = await Usuario.findById(consulta.usuario_id);
+            }
+
+            if (consulta.profesional_id) {
+                profesional = await Profesional.findById(consulta.profesional_id);
+            }
+
             const actualizada = await Consulta.update(parseInt(id), {
                 estado: 'cancelado',
+                notas_profesional: motivo || 'Consulta cancelada',
                 actualizado_en: new Date()
             });
 
@@ -442,11 +458,30 @@ class ConsultaController {
                 // Invalidar caché del profesional
                 cacheService.invalidateProfesionalCache(consulta.profesional_id);
                 
+                // Enviar email de notificación al paciente (si existe y tiene email)
+                if (paciente && paciente.email && profesional) {
+                    try {
+                        const emailService = new EmailService();
+                        await emailService.sendCancelacionNotificacion({
+                            pacienteNombre: paciente.apellido_nombre,
+                            pacienteEmail: paciente.email,
+                            profesionalNombre: profesional.nombre,
+                            fecha: consulta.fecha,
+                            hora: consulta.hora,
+                            motivo: motivo || 'Sin motivo especificado'
+                        });
+                        console.log(`📧 Email de cancelación enviado a ${paciente.email}`);
+                    } catch (emailError) {
+                        console.warn('Error enviando email de cancelación:', emailError);
+                        // No fallar la operación si el email falla
+                    }
+                }
+                
                 console.log(`✅ Consulta ${id} cancelada exitosamente`);
                 
                 res.json({
                     success: true,
-                    message: 'Consulta cancelada exitosamente',
+                    message: 'Consulta cancelada exitosamente y notificación enviada por email',
                     data: { id: parseInt(id), estado: 'cancelado' }
                 });
             } else {
@@ -457,7 +492,145 @@ class ConsultaController {
             console.error('Error al cancelar consulta:', error);
             res.status(500).json({ 
                 success: false, 
-                message: 'Error interno del servidor al cancelar consulta' 
+                message: 'Error interno del servidor al cancelar consulta',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+
+    // Reprogramar consulta
+    static async reprogramarConsulta(req, res) {
+        try {
+            const { id } = req.params;
+            const { nueva_fecha, nueva_hora, motivo } = req.body;
+            
+            if (!id || isNaN(id)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'ID de consulta inválido' 
+                });
+            }
+
+            if (!nueva_fecha || !nueva_hora) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'La nueva fecha y hora son requeridas' 
+                });
+            }
+
+            // Verificar que la consulta existe
+            const consulta = await Consulta.findById(parseInt(id));
+            
+            if (!consulta) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Consulta no encontrada' 
+                });
+            }
+
+            if (consulta.estado !== 'activo') {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Solo se pueden reprogramar consultas activas' 
+                });
+            }
+
+            // Verificar que la nueva fecha no sea en el pasado
+            const nuevaFechaCompleta = new Date(`${nueva_fecha}T${nueva_hora}`);
+            const ahora = new Date();
+            
+            if (nuevaFechaCompleta <= ahora) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'La nueva fecha y hora deben ser en el futuro' 
+                });
+            }
+
+            // Verificar disponibilidad en la nueva fecha/hora
+            const disponible = await Consulta.checkAvailability(
+                consulta.profesional_id, 
+                nueva_fecha, 
+                nueva_hora
+            );
+            
+            if (!disponible) {
+                return res.status(409).json({ 
+                    success: false, 
+                    message: 'El horario seleccionado no está disponible' 
+                });
+            }
+
+            // Obtener datos del paciente y profesional para el email
+            let paciente = null;
+            let profesional = null;
+
+            if (consulta.usuario_id) {
+                paciente = await Usuario.findById(consulta.usuario_id);
+            }
+
+            if (consulta.profesional_id) {
+                profesional = await Profesional.findById(consulta.profesional_id);
+            }
+
+            // Guardar datos originales para el email
+            const fechaOriginal = consulta.fecha;
+            const horaOriginal = consulta.hora;
+
+            // Actualizar la consulta
+            const actualizada = await Consulta.update(parseInt(id), {
+                fecha: nueva_fecha,
+                hora: nueva_hora,
+                notas_profesional: motivo || consulta.notas_profesional || 'Consulta reprogramada',
+                actualizado_en: new Date()
+            });
+
+            if (actualizada) {
+                // Invalidar caché del profesional
+                cacheService.invalidateProfesionalCache(consulta.profesional_id);
+
+                // Enviar email de notificación al paciente (si existe y tiene email)
+                if (paciente && paciente.email && profesional) {
+                    try {
+                        const emailService = new EmailService();
+                        await emailService.sendReprogramacionNotificacion({
+                            pacienteNombre: paciente.apellido_nombre,
+                            pacienteEmail: paciente.email,
+                            profesionalNombre: profesional.nombre,
+                            fechaOriginal: fechaOriginal,
+                            horaOriginal: horaOriginal,
+                            nuevaFecha: nueva_fecha,
+                            nuevaHora: nueva_hora,
+                            motivo: motivo || 'Sin motivo especificado'
+                        });
+                        console.log(`📧 Email de reprogramación enviado a ${paciente.email}`);
+                    } catch (emailError) {
+                        console.warn('Error enviando email de reprogramación:', emailError);
+                        // No fallar la operación si el email falla
+                    }
+                }
+
+                console.log(`✅ Consulta ${id} reprogramada exitosamente`);
+                
+                res.json({
+                    success: true,
+                    message: 'Consulta reprogramada exitosamente y notificación enviada por email',
+                    data: { 
+                        id: parseInt(id), 
+                        fecha: nueva_fecha, 
+                        hora: nueva_hora,
+                        motivo: motivo
+                    }
+                });
+            } else {
+                throw new Error('Error al actualizar la consulta');
+            }
+
+        } catch (error) {
+            console.error('Error al reprogramar consulta:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: 'Error interno del servidor al reprogramar consulta',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
     }

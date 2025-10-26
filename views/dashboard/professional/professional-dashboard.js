@@ -1832,13 +1832,10 @@ function displayConsultas(consultas) {
                 <div class="col-md-2">
                     <div class="text-center">
                         <div class="fw-bold text-primary">
-                            ${new Date(consulta.fecha_hora).toLocaleDateString('es-ES')}
+                            ${formatDateWithTimezone(consulta.fecha_hora)}
                         </div>
                         <small class="text-muted">
-                            ${new Date(consulta.fecha_hora).toLocaleTimeString('es-ES', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            })}
+                            ${formatTimeWithTimezone(consulta.fecha_hora)}
                         </small>
                     </div>
                 </div>
@@ -2915,8 +2912,23 @@ async function loadSystemSettings() {
 // Load timezone settings
 async function loadTimezoneSettings() {
     try {
-        // Get current timezone from localStorage or default
-        const savedTimezone = localStorage.getItem('systemTimezone') || 'America/Argentina/Buenos_Aires';
+        // Get current timezone from localStorage
+        let savedTimezone = localStorage.getItem('systemTimezone');
+        
+        // Si no está en localStorage, intentar obtener de los datos del usuario
+        if (!savedTimezone) {
+            const userData = JSON.parse(localStorage.getItem('user'));
+            if (userData && userData.timezone) {
+                savedTimezone = userData.timezone;
+                // Guardar en localStorage para futuras referencias
+                localStorage.setItem('systemTimezone', savedTimezone);
+            }
+        }
+        
+        // Si todavía no hay timezone, usar default
+        if (!savedTimezone) {
+            savedTimezone = 'America/Argentina/Buenos_Aires';
+        }
         
         // Display current timezone
         document.getElementById('currentTimezoneDisplay').value = formatTimezoneName(savedTimezone);
@@ -3075,7 +3087,15 @@ async function updateProfessionalTimezone(timezone) {
             userData.timezone = timezone;
             localStorage.setItem('user', JSON.stringify(userData));
             
-            console.log('✅ Zona horaria actualizada en base de datos:', timezone);
+            // Actualizar también systemTimezone en localStorage
+            localStorage.setItem('systemTimezone', timezone);
+            
+            // Si existe la variable global professionalTimezone en home.js, actualizarla
+            if (typeof window.updateProfessionalTimezoneGlobal === 'function') {
+                window.updateProfessionalTimezoneGlobal(timezone);
+            }
+            
+            console.log('✅ Zona horaria actualizada en base de datos y localStorage:', timezone);
         } else {
             console.warn('⚠️ No se pudo actualizar la zona horaria en la base de datos');
         }
@@ -3085,29 +3105,138 @@ async function updateProfessionalTimezone(timezone) {
     }
 }
 
+// Helper functions for formatting dates with timezone
+function formatDateWithTimezone(dateTime) {
+    try {
+        const timezone = getSystemTimezone();
+        const date = new Date(dateTime);
+        
+        const options = { 
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        };
+        
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        return formatter.format(date);
+    } catch (error) {
+        // Fallback a formato local
+        return new Date(dateTime).toLocaleDateString('es-ES');
+    }
+}
+
+function formatTimeWithTimezone(dateTime) {
+    try {
+        const timezone = getSystemTimezone();
+        const date = new Date(dateTime);
+        
+        const options = { 
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        };
+        
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        return formatter.format(date);
+    } catch (error) {
+        // Fallback a formato local
+        return new Date(dateTime).toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+}
+
 // Utility functions for timezone handling
 window.getSystemTimezone = function() {
-    return localStorage.getItem('systemTimezone') || 'America/Argentina/Buenos_Aires';
+    // Primero intentar obtener de localStorage
+    let timezone = localStorage.getItem('systemTimezone');
+    
+    // Si no está en localStorage, intentar obtener de los datos del usuario
+    if (!timezone) {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        if (userData && userData.timezone) {
+            timezone = userData.timezone;
+        }
+    }
+    
+    return timezone || 'America/Argentina/Buenos_Aires';
 }
 
 window.formatDateTimeForSystem = function(dateTime, format = 'DD/MM/YYYY HH:mm:ss') {
     const timezone = getSystemTimezone();
-    return dayjs(dateTime).tz(timezone).format(format);
+    
+    // Si dayjs-timezone no está disponible, usar Intl.DateTimeFormat
+    if (typeof dayjs.tz === 'function') {
+        return dayjs(dateTime).tz(timezone).format(format);
+    } else {
+        // Fallback usando Intl.DateTimeFormat
+        const date = new Date(dateTime);
+        const options = { 
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        };
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        return formatter.format(date);
+    }
 }
 
 window.formatDateForSystem = function(dateTime, format = 'DD/MM/YYYY') {
     const timezone = getSystemTimezone();
-    return dayjs(dateTime).tz(timezone).format(format);
+    
+    if (typeof dayjs.tz === 'function') {
+        return dayjs(dateTime).tz(timezone).format(format);
+    } else {
+        // Fallback
+        const date = new Date(dateTime);
+        const options = { 
+            timeZone: timezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        };
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        return formatter.format(date);
+    }
 }
 
 window.formatTimeForSystem = function(dateTime, format = 'H:mm:ss') {
     const timezone = getSystemTimezone();
-    return dayjs(dateTime).tz(timezone).format(format);
+    
+    if (typeof dayjs.tz === 'function') {
+        return dayjs(dateTime).tz(timezone).format(format);
+    } else {
+        // Fallback
+        const date = new Date(dateTime);
+        const options = { 
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        };
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        return formatter.format(date);
+    }
 }
 
 window.getCurrentSystemTime = function() {
     const timezone = getSystemTimezone();
-    return dayjs().tz(timezone);
+    
+    if (typeof dayjs.tz === 'function') {
+        return dayjs().tz(timezone);
+    } else {
+        // Fallback
+        return new Date();
+    }
 }
 
 function logout() {

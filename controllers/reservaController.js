@@ -47,23 +47,49 @@ class ReservaController {
                 });
             }
 
-            // Obtener zona horaria del profesional
-            const profesionalQuery = `SELECT timezone FROM profesionales WHERE id = 1`;
+            // Obtener zona horaria del profesional (usar el primer profesional o un sistema de multi-profesional)
+            // TODO: Esto debería obtener el profesional_id del request o pasar como parámetro
+            const profesionalQuery = `SELECT timezone FROM profesionales ORDER BY id LIMIT 1`;
             const [profesional] = await executeQuery(profesionalQuery);
             const timezone = profesional?.timezone || 'UTC';
             
             // Validación de fecha (debe ser futura)
             // La fecha viene en formato YYYY-MM-DD del frontend
-            // La guardamos tal como viene, ya que representa la fecha local del usuario
-            const selectedDate = new Date(fecha + 'T00:00:00');
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            // La guardamos tal como viene, ya que representa la fecha local del profesional
+            
+            // Obtener fecha actual en la zona horaria del profesional
+            let todayInTimezone;
+            if (timezone && timezone !== 'UTC') {
+                try {
+                    const now = new Date();
+                    const options = { 
+                        timeZone: timezone,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    };
+                    const formatter = new Intl.DateTimeFormat('en-CA', options);
+                    const parts = formatter.formatToParts(now);
+                    const year = parts.find(part => part.type === 'year').value;
+                    const month = parts.find(part => part.type === 'month').value;
+                    const day = parts.find(part => part.type === 'day').value;
+                    todayInTimezone = `${year}-${month}-${day}`;
+                } catch (error) {
+                    console.warn('⚠️ Error calculando fecha en timezone, usando fecha del servidor');
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    todayInTimezone = today.toISOString().split('T')[0];
+                }
+            } else {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                todayInTimezone = today.toISOString().split('T')[0];
+            }
             
             console.log(`Fecha seleccionada por usuario: ${fecha}`);
-            console.log(`Fecha para validación: ${selectedDate.toISOString()}`);
-            console.log(`Hoy: ${today.toISOString()}`);
+            console.log(`Fecha actual en timezone del profesional (${timezone}): ${todayInTimezone}`);
             
-            if (selectedDate <= today) {
+            if (fecha <= todayInTimezone) {
                 return res.status(400).json({
                     success: false,
                     message: 'La fecha debe ser futura'

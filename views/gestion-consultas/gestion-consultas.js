@@ -6,7 +6,7 @@ class GestionConsultasManager {
         this.itemsPerPage = 10;
         this.totalPages = 1;
         this.totalItems = 0;
-        this.timezone = 'America/Argentina/Buenos_Aires';
+        this.timezone = 'UTC'; // Se actualizará desde la BD
         this.filtros = {
             fecha: '',
             estado: '',
@@ -28,8 +28,9 @@ class GestionConsultasManager {
         // Configurar event listeners
         this.setupEventListeners();
         
-        // Cargar información del usuario
+        // Cargar información del usuario y timezone
         this.loadUserInfo();
+        await this.loadTimezone();
         
         // Cargar datos iniciales
         await this.loadConsultas();
@@ -98,6 +99,28 @@ class GestionConsultasManager {
             }
         } catch (error) {
             console.error('Error cargando información del usuario:', error);
+        }
+    }
+
+    async loadTimezone() {
+        try {
+            const profesional = await this.getProfesionalData();
+            if (profesional && profesional.timezone) {
+                this.timezone = profesional.timezone;
+                console.log('✅ Zona horaria cargada:', this.timezone);
+            } else {
+                // Intentar obtener del localStorage
+                const userData = JSON.parse(localStorage.getItem('user'));
+                if (userData && userData.timezone) {
+                    this.timezone = userData.timezone;
+                    console.log('✅ Zona horaria cargada desde localStorage:', this.timezone);
+                } else {
+                    console.warn('⚠️ No se encontró zona horaria, usando UTC');
+                }
+            }
+        } catch (error) {
+            console.error('Error cargando zona horaria:', error);
+            // Mantener timezone por defecto
         }
     }
 
