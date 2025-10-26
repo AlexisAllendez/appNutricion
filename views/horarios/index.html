@@ -112,9 +112,14 @@
             <div class="tab-pane fade" id="dias-no-laborales" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="mb-0">Días No Laborales</h5>
-                    <button class="btn btn-warning" id="addDiaNoLaboralBtn">
-                        <i class="fas fa-plus me-2"></i>Agregar Día No Laboral
-                    </button>
+                    <div>
+                        <button class="btn btn-danger me-2" id="eliminarSeleccionadosBtn" style="display: none;">
+                            <i class="fas fa-trash me-2"></i>Eliminar Seleccionados
+                        </button>
+                        <button class="btn btn-warning" id="addDiaNoLaboralBtn">
+                            <i class="fas fa-plus me-2"></i>Agregar Día No Laboral
+                        </button>
+                    </div>
                 </div>
                 <div id="diasNoLaboralesContainer">
                     <div class="text-center py-5">
@@ -409,12 +414,57 @@
                     </div>
                     
                     <form id="agregarDiaNoLaboralForm">
-                        <!-- Fecha -->
+                        <!-- Tipo de selección -->
                         <div class="mb-3">
-                            <label for="fechaNoLaboral" class="form-label fw-bold">
-                                <i class="fas fa-calendar me-2 text-danger"></i>Fecha *
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-calendar-check me-2 text-primary"></i>Tipo de Selección
                             </label>
-                            <input type="date" class="form-control" id="fechaNoLaboral" required>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="form-check p-3 border rounded h-100">
+                                        <input class="form-check-input" type="radio" name="tipoSeleccion" id="diaUnico" value="unico" checked>
+                                        <label class="form-check-label fw-medium d-block" for="diaUnico">
+                                            <i class="fas fa-calendar-day me-2"></i>Día Único
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check p-3 border rounded h-100">
+                                        <input class="form-check-input" type="radio" name="tipoSeleccion" id="rangoFechas" value="rango">
+                                        <label class="form-check-label fw-medium d-block" for="rangoFechas">
+                                            <i class="fas fa-calendar-alt me-2"></i>Rango de Días
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Día único -->
+                        <div id="diaUnicoContainer">
+                            <div class="mb-3">
+                                <label for="fechaNoLaboral" class="form-label fw-bold">
+                                    <i class="fas fa-calendar me-2 text-danger"></i>Fecha *
+                                </label>
+                                <input type="date" class="form-control" id="fechaNoLaboral">
+                            </div>
+                        </div>
+
+                        <!-- Rango de fechas -->
+                        <div id="rangoFechasContainer" style="display: none;">
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label for="fechaInicio" class="form-label fw-bold">
+                                        <i class="fas fa-calendar-plus me-2 text-danger"></i>Fecha Inicio *
+                                    </label>
+                                    <input type="date" class="form-control" id="fechaInicio">
+                                </div>
+                                <div class="col-6">
+                                    <label for="fechaFin" class="form-label fw-bold">
+                                        <i class="fas fa-calendar-minus me-2 text-danger"></i>Fecha Fin *
+                                    </label>
+                                    <input type="date" class="form-control" id="fechaFin">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Motivo -->
@@ -479,6 +529,40 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Confirmar Eliminación Múltiple -->
+    <div class="modal fade" id="confirmarEliminarMultipleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>¿Estás seguro?</strong> Se eliminarán <span id="cantidadDiasEliminar">0</span> día(s) no laboral(es).
+                    </div>
+                    <div id="listaDiasEliminar">
+                        <!-- Las fechas se cargarán dinámicamente -->
+                    </div>
+                    <p class="mb-0 text-muted">
+                        <small>Esta acción no se puede deshacer.</small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmarEliminarMultipleBtn">
+                        <i class="fas fa-trash me-1"></i>Eliminar
+                    </button>
                 </div>
             </div>
         </div>

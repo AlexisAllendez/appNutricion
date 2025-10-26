@@ -3504,6 +3504,12 @@ function setupEventListeners() {
     if (guardarEdicionConsultaBtn) {
         guardarEdicionConsultaBtn.addEventListener('click', guardarEdicionConsulta);
     }
+
+    // Handle cancel consultation button
+    const confirmarCancelacionBtn = document.getElementById('confirmar-cancelacion-consulta-btn');
+    if (confirmarCancelacionBtn) {
+        confirmarCancelacionBtn.addEventListener('click', confirmarCancelacionConsulta);
+    }
     
     // Handle date change for available hours
     const nuevaConsultaFecha = document.getElementById('nuevaConsultaFecha');
@@ -4382,11 +4388,11 @@ function createConsultaRow(consulta) {
     // Format date - Parse as local date to avoid timezone issues
     const fechaParts = consulta.fecha.split('-');
     const fecha = new Date(parseInt(fechaParts[0]), parseInt(fechaParts[1]) - 1, parseInt(fechaParts[2]));
+    // Formatear fecha sin timezone para evitar problemas de conversión
     const fechaFormatted = fecha.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        timeZone: profesionalesTimezone
+        day: 'numeric'
     });
 
     // Format time
@@ -4426,11 +4432,6 @@ function createConsultaRow(consulta) {
                         title="Ver detalles">
                     <i class="fas fa-eye"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-secondary btn-action edit-consulta-btn" 
-                        data-consulta-id="${consulta.id}"
-                        title="Editar">
-                    <i class="fas fa-edit"></i>
-                </button>
                 ${consulta.estado === 'activo' ? `
                 <button class="btn btn-sm btn-outline-danger btn-action cancel-consulta-btn" 
                         data-consulta-id="${consulta.id}"
@@ -4444,14 +4445,10 @@ function createConsultaRow(consulta) {
 
     // Add event listeners to the buttons
     const viewBtn = row.querySelector('.view-consulta-btn');
-    const editBtn = row.querySelector('.edit-consulta-btn');
     const cancelBtn = row.querySelector('.cancel-consulta-btn');
 
     if (viewBtn) {
         viewBtn.addEventListener('click', () => viewConsulta(consulta.id));
-    }
-    if (editBtn) {
-        editBtn.addEventListener('click', () => editConsulta(consulta.id));
     }
     if (cancelBtn) {
         cancelBtn.addEventListener('click', () => cancelarConsulta(consulta.id));
@@ -4573,11 +4570,11 @@ function renderConsultaDetalles(consulta) {
     // Format date
     const fechaParts = consulta.fecha.split('-');
     const fecha = new Date(parseInt(fechaParts[0]), parseInt(fechaParts[1]) - 1, parseInt(fechaParts[2]));
+    // Formatear fecha sin timezone para evitar problemas de conversión
     const fechaFormatted = fecha.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        timeZone: profesionalesTimezone
+        day: 'numeric'
     });
 
     // Format time
@@ -4922,12 +4919,89 @@ async function guardarEdicionConsulta() {
     }
 }
 
-function cancelarConsulta(consultaId) {
-    if (confirm('¿Está seguro de que desea cancelar esta consulta?')) {
-        console.log('Cancelar consulta:', consultaId);
-        showAlert(`Cancelando consulta ${consultaId}`, 'warning');
-        // TODO: Implementar cancelación de consulta
+async function openCancelarConsultaModal(consultaId) {
+    try {
+        // Buscar los datos de la consulta
+        const consulta = consultasData.find(c => c.id === consultaId);
+        
+        if (!consulta) {
+            showAlert('No se encontraron datos de la consulta', 'error');
+            return;
+        }
+
+        // Formatear fecha
+        const fechaParts = consulta.fecha.split('-');
+        const fecha = new Date(parseInt(fechaParts[0]), parseInt(fechaParts[1]) - 1, parseInt(fechaParts[2]));
+        const fechaFormatted = fecha.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Llenar el modal
+        document.getElementById('cancelar-consulta-id').value = consultaId;
+        document.getElementById('cancelar-fecha-consulta').value = fechaFormatted;
+        document.getElementById('cancelar-hora-consulta').value = consulta.hora.substring(0, 5);
+        document.getElementById('motivo-cancelacion-consulta').value = '';
+
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(document.getElementById('cancelarConsultaModal'));
+        modal.show();
+
+    } catch (error) {
+        console.error('Error abriendo modal de cancelación:', error);
+        showAlert('Error al cargar datos de la consulta', 'error');
     }
+}
+
+async function confirmarCancelacionConsulta() {
+    try {
+        const consultaId = document.getElementById('cancelar-consulta-id').value;
+        const motivo = document.getElementById('motivo-cancelacion-consulta').value.trim();
+
+        if (!motivo) {
+            showAlert('Debe ingresar un motivo de cancelación', 'warning');
+            return;
+        }
+
+        showAlert('Cancelando consulta...', 'info');
+        
+        const token = localStorage.getItem('token');
+
+        const response = await fetch(`/api/gestion-consultas/consulta/${consultaId}/cancelar`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ motivo: motivo })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Error al cancelar la consulta');
+        }
+
+        const result = await response.json();
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('cancelarConsultaModal'));
+        modal.hide();
+        
+        showAlert('Consulta cancelada exitosamente. Se ha enviado una notificación por email al paciente.', 'success');
+        
+        // Recargar las consultas
+        await loadConsultas();
+        
+    } catch (error) {
+        console.error('Error cancelando consulta:', error);
+        showAlert(`Error al cancelar la consulta: ${error.message}`, 'error');
+    }
+}
+
+// La función antigua ahora abre el modal
+function cancelarConsulta(consultaId) {
+    openCancelarConsultaModal(consultaId);
 }
 
 // ==================== ANTROPOMETRÍA FUNCTIONS ====================

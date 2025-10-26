@@ -204,6 +204,20 @@ class Agenda {
     // Obtener horarios disponibles para una fecha específica
     async getHorariosDisponibles(profesionalId, fecha) {
         try {
+            // VERIFICAR SI ES DÍA NO LABORAL
+            const diaNoLaboralQuery = `
+                SELECT COUNT(*) as count 
+                FROM excepciones_horarios 
+                WHERE profesional_id = ? AND fecha = ? AND activo = TRUE
+            `;
+            const diaNoLaboralResult = await executeQuery(diaNoLaboralQuery, [profesionalId, fecha]);
+            const esDiaNoLaboral = diaNoLaboralResult[0].count > 0;
+            
+            if (esDiaNoLaboral) {
+                console.log(`❌ ${fecha} es un día no laboral, no se generan turnos disponibles`);
+                return [];
+            }
+            
             // Obtener la zona horaria del profesional
             const profesionalQuery = `
                 SELECT timezone 

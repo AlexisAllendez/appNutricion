@@ -227,6 +227,24 @@ class ReservaController {
         try {
             console.log(`🔍 Verificando disponibilidad para profesional ${profesionalId}, fecha ${fecha}, hora ${hora}`);
 
+            // VERIFICAR SI ES DÍA NO LABORAL
+            const diaNoLaboralQuery = `
+                SELECT COUNT(*) as count 
+                FROM excepciones_horarios 
+                WHERE profesional_id = ? AND fecha = ? AND activo = TRUE
+            `;
+            const diaNoLaboralResult = await executeQuery(diaNoLaboralQuery, [profesionalId, fecha]);
+            const esDiaNoLaboral = diaNoLaboralResult[0].count > 0;
+            
+            if (esDiaNoLaboral) {
+                console.log(`❌ ${fecha} es un día no laboral, no se puede reservar turnos`);
+                return {
+                    disponible: false,
+                    motivo: 'Este día está marcado como no laboral',
+                    horarios_disponibles: []
+                };
+            }
+
             // Usar el modelo Agenda para obtener horarios disponibles
             const agenda = new Agenda();
             const horariosDisponibles = await agenda.getHorariosDisponibles(profesionalId, fecha);

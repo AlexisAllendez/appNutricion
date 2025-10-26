@@ -326,6 +326,23 @@ class ConsultaController {
                 });
             }
 
+            // VERIFICAR SI ES DÍA NO LABORAL
+            const { executeQuery } = require('../config/db');
+            const diaNoLaboralQuery = `
+                SELECT COUNT(*) as count 
+                FROM excepciones_horarios 
+                WHERE profesional_id = ? AND fecha = ? AND activo = TRUE
+            `;
+            const diaNoLaboralResult = await executeQuery(diaNoLaboralQuery, [profesional_id, fecha]);
+            const esDiaNoLaboral = diaNoLaboralResult[0].count > 0;
+            
+            if (esDiaNoLaboral) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'Este día está marcado como no laboral y no se pueden agendar turnos' 
+                });
+            }
+
             // Verificar disponibilidad
             const disponible = await Consulta.checkAvailability(profesional_id, fecha, hora);
             if (!disponible) {

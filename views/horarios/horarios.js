@@ -112,12 +112,30 @@ function setupEventListeners() {
         guardarDiaNoLaboralBtn.addEventListener('click', guardarDiaNoLaboral);
         console.log('✅ Event listener agregado para guardarDiaNoLaboralBtn');
     }
+
+    // Botón eliminar seleccionados
+    const eliminarSeleccionadosBtn = document.getElementById('eliminarSeleccionadosBtn');
+    if (eliminarSeleccionadosBtn) {
+        eliminarSeleccionadosBtn.addEventListener('click', mostrarModalEliminarSeleccionados);
+    }
+
+    // Botón confirmar eliminación múltiple
+    const confirmarEliminarMultipleBtn = document.getElementById('confirmarEliminarMultipleBtn');
+    if (confirmarEliminarMultipleBtn) {
+        confirmarEliminarMultipleBtn.addEventListener('click', eliminarDiasSeleccionados);
+    }
     
     // Event listeners para vista previa en tiempo real
     setupModalEventListeners();
     
     // Event listeners para modal de edición
     setupEditarModalEventListeners();
+    
+    // Event listeners para tipo de selección de días no laborales
+    const tipoSeleccionRadios = document.querySelectorAll('input[name="tipoSeleccion"]');
+    tipoSeleccionRadios.forEach(radio => {
+        radio.addEventListener('change', updateTipoSeleccion);
+    });
     
     // Event delegation para botones dinámicos
     setupEventDelegation();
@@ -359,6 +377,10 @@ function renderDiasNoLaborales() {
         html += `
             <div class="col-lg-4 col-md-6">
                 <div class="dia-no-laboral-item">
+                    <div class="form-check position-absolute top-0 end-0 m-3">
+                        <input class="form-check-input dia-checkbox" type="checkbox" value="${dia.id}" id="dia-${dia.id}" onchange="toggleEliminarButton()">
+                        <label class="form-check-label" for="dia-${dia.id}"></label>
+                    </div>
                     <div class="dia-fecha">
                         <i class="fas fa-calendar-times me-2"></i>
                         ${formatFecha(dia.fecha)}
@@ -667,7 +689,16 @@ async function guardarHorario() {
 
 // Funciones de utilidad
 function formatFecha(fecha) {
-    return new Date(fecha).toLocaleDateString('es-ES', {
+    // Parsear la fecha manualmente para evitar problemas de timezone
+    // La fecha viene en formato YYYY-MM-DD
+    const partes = fecha.split('-');
+    const year = parseInt(partes[0]);
+    const month = parseInt(partes[1]) - 1; // Los meses en JS van de 0-11
+    const day = parseInt(partes[2]);
+    
+    const fechaObj = new Date(year, month, day);
+    
+    return fechaObj.toLocaleDateString('es-ES', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -675,10 +706,41 @@ function formatFecha(fecha) {
     });
 }
 
-// Funciones de modales (placeholders)
+// Funciones de modales
 function showAddDiaNoLaboralModal() {
     console.log('📅 Mostrando modal agregar día no laboral');
-    showInfo('Función de agregar día no laboral próximamente disponible');
+    
+    // Limpiar formulario
+    document.getElementById('agregarDiaNoLaboralForm').reset();
+    document.getElementById('agregarDiaNoLaboralAlert').classList.add('d-none');
+    
+    // Mostrar contenedores según tipo seleccionado
+    updateTipoSeleccion();
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('agregarDiaNoLaboralModal'));
+    modal.show();
+}
+
+// Actualizar tipo de selección
+function updateTipoSeleccion() {
+    const tipoSeleccion = document.querySelector('input[name="tipoSeleccion"]:checked').value;
+    const diaUnicoContainer = document.getElementById('diaUnicoContainer');
+    const rangoFechasContainer = document.getElementById('rangoFechasContainer');
+    
+    if (tipoSeleccion === 'unico') {
+        diaUnicoContainer.style.display = 'block';
+        rangoFechasContainer.style.display = 'none';
+        document.getElementById('fechaNoLaboral').required = true;
+        document.getElementById('fechaInicio').required = false;
+        document.getElementById('fechaFin').required = false;
+    } else {
+        diaUnicoContainer.style.display = 'none';
+        rangoFechasContainer.style.display = 'block';
+        document.getElementById('fechaNoLaboral').required = false;
+        document.getElementById('fechaInicio').required = true;
+        document.getElementById('fechaFin').required = true;
+    }
 }
 
 // Funciones de acciones
@@ -717,6 +779,127 @@ function deleteHorario(id) {
 function editDiaNoLaboral(id) {
     console.log('✏️ Editando día no laboral:', id);
     showInfo('Función de editar día no laboral próximamente disponible');
+}
+
+// Toggle del botón eliminar seleccionados
+function toggleEliminarButton() {
+    const checkboxes = document.querySelectorAll('.dia-checkbox:checked');
+    const eliminarBtn = document.getElementById('eliminarSeleccionadosBtn');
+    
+    if (checkboxes.length > 0) {
+        eliminarBtn.style.display = 'inline-block';
+        eliminarBtn.innerHTML = `<i class="fas fa-trash me-2"></i>Eliminar ${checkboxes.length} Seleccionados`;
+    } else {
+        eliminarBtn.style.display = 'none';
+    }
+}
+
+// Mostrar modal de confirmación para eliminación múltiple
+function mostrarModalEliminarSeleccionados() {
+    const checkboxes = document.querySelectorAll('.dia-checkbox:checked');
+    const idsSeleccionados = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (idsSeleccionados.length === 0) {
+        showInfo('Selecciona al menos un día no laboral para eliminar');
+        return;
+    }
+    
+    // Obtener fechas de los días seleccionados
+    const diasSeleccionados = diasNoLaborales.filter(dia => idsSeleccionados.includes(dia.id));
+    
+    // Actualizar modal
+    document.getElementById('cantidadDiasEliminar').textContent = diasSeleccionados.length;
+    
+    // Mostrar lista de fechas
+    const listaContainer = document.getElementById('listaDiasEliminar');
+    listaContainer.innerHTML = '<ul class="list-group mt-3">';
+    diasSeleccionados.forEach(dia => {
+        // Parsear la fecha manualmente para evitar problemas de timezone
+        const partes = dia.fecha.split('-');
+        const year = parseInt(partes[0]);
+        const month = parseInt(partes[1]) - 1;
+        const day = parseInt(partes[2]);
+        const fechaObj = new Date(year, month, day);
+        
+        const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        listaContainer.innerHTML += `
+            <li class="list-group-item">
+                <i class="fas fa-calendar-times me-2 text-danger"></i>
+                <strong>${fechaFormateada}</strong>
+                <span class="text-muted ms-2">- ${dia.motivo}</span>
+            </li>
+        `;
+    });
+    listaContainer.innerHTML += '</ul>';
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('confirmarEliminarMultipleModal'));
+    modal.show();
+}
+
+// Eliminar días seleccionados
+async function eliminarDiasSeleccionados() {
+    const checkboxes = document.querySelectorAll('.dia-checkbox:checked');
+    const idsParaEliminar = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (idsParaEliminar.length === 0) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        let eliminados = 0;
+        let errores = [];
+        
+        // Eliminar cada día
+        for (const id of idsParaEliminar) {
+            try {
+                const response = await fetch(`/api/horarios/dia-no-laboral/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    eliminados++;
+                } else {
+                    errores.push(`Día ${id}: Error`);
+                }
+            } catch (error) {
+                errores.push(`Día ${id}: ${error.message}`);
+            }
+        }
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('confirmarEliminarMultipleModal'));
+        modal.hide();
+        
+        // Desmarcar todos los checkboxes
+        document.querySelectorAll('.dia-checkbox').forEach(cb => cb.checked = false);
+        
+        // Ocultar botón de eliminar
+        document.getElementById('eliminarSeleccionadosBtn').style.display = 'none';
+        
+        // Recargar días no laborales
+        await loadDiasNoLaborales();
+        updateStatsDisplay();
+        
+        // Mostrar resultado
+        if (errores.length === 0) {
+            showSuccess(`${eliminados} día(s) no laboral(es) eliminado(s) exitosamente`);
+        } else {
+            showSuccess(`${eliminados} día(s) eliminado(s). Algunos errores: ${errores.join(', ')}`);
+        }
+        
+    } catch (error) {
+        console.error('Error eliminando días no laborales:', error);
+        showError('Error al eliminar días no laborales');
+    }
 }
 
 function deleteDiaNoLaboral(id) {
@@ -1195,117 +1378,155 @@ async function guardarDiaNoLaboral() {
     try {
         console.log('💾 Guardando día no laboral...');
         
-        // Obtener datos del formulario
-        const fecha = document.getElementById('fechaNoLaboral').value;
+        // Obtener tipo de selección
+        const tipoSeleccion = document.querySelector('input[name="tipoSeleccion"]:checked').value;
         const motivo = document.getElementById('motivoNoLaboral').value.trim();
-        const activo = document.getElementById('diaNoLaboralActivo').checked;
-        
-        // Obtener tipo de día seleccionado
-        const tipoDiaElement = document.querySelector('input[name="tipoDia"]:checked');
-        const tipoDia = tipoDiaElement ? tipoDiaElement.value : 'otro';
+        const activo = document.getElementById('diaNoLaboralActivo')?.checked !== false;
         
         // Ocultar alerta previa
         hideModalAlert('agregarDiaNoLaboralAlert');
         
         // Validaciones
-        if (!fecha || !motivo) {
-            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Por favor completa todos los campos obligatorios');
+        if (!motivo) {
+            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Por favor ingresa un motivo');
             return;
         }
         
-        // Verificar que la fecha no sea en el pasado
-        const fechaDia = new Date(fecha);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
+        let fechasParaAgregar = [];
         
-        if (fechaDia < hoy) {
-            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'No se puede agregar un día no laboral en el pasado');
-            return;
-        }
-        
-        // Verificar si ya existe un día no laboral para esta fecha
-        const diaExistente = diasNoLaborales.find(d => d.fecha === fecha);
-        if (diaExistente) {
-            const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES');
-            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', `Ya existe un día no laboral configurado para el ${fechaFormateada}. Por favor, elige otra fecha.`);
-            return;
-        }
-        
-        // Preparar datos para enviar
-        const diaData = {
-            fecha: fecha,
-            motivo: motivo,
-            activo: activo
-        };
-        
-        console.log('📋 Datos del día no laboral:', diaData);
-        
-        // Enviar al servidor
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/horarios/dia-no-laboral', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(diaData)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.log('📋 Error del servidor:', errorData);
+        if (tipoSeleccion === 'unico') {
+            // Día único
+            const fecha = document.getElementById('fechaNoLaboral').value;
+            if (!fecha) {
+                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Por favor selecciona una fecha');
+                return;
+            }
+            fechasParaAgregar.push(fecha);
+        } else {
+            // Rango de fechas
+            const fechaInicio = document.getElementById('fechaInicio').value;
+            const fechaFin = document.getElementById('fechaFin').value;
             
-            // Manejar errores específicos con mensajes más claros
-            if (response.status === 400) {
-                if (errorData.message && errorData.message.includes('Ya existe')) {
-                    showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Ya existe un día no laboral configurado para esta fecha. Por favor, elige otra fecha.');
-                    return;
-                } else if (errorData.message && errorData.message.includes('pasado')) {
-                    showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'No se puede agregar un día no laboral en el pasado.');
-                    return;
-                } else {
-                    showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', errorData.message || 'Los datos ingresados no son válidos. Por favor, revisa la información.');
-                    return;
-                }
-            } else if (response.status === 401) {
-                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+            if (!fechaInicio || !fechaFin) {
+                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'Por favor completa las fechas de inicio y fin');
                 return;
-            } else if (response.status === 403) {
-                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'No tienes permisos para realizar esta acción.');
+            }
+            
+            if (fechaInicio > fechaFin) {
+                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', 'La fecha de inicio debe ser anterior a la fecha de fin');
                 return;
-            } else {
-                showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', errorData.message || `Error del servidor (${response.status}): ${response.statusText}`);
-                return;
+            }
+            
+            // Generar rango de fechas
+            // Parsear fechas manualmente para evitar problemas de timezone
+            const partesInicio = fechaInicio.split('-');
+            const partesFin = fechaFin.split('-');
+            
+            const inicio = new Date(
+                parseInt(partesInicio[0]),
+                parseInt(partesInicio[1]) - 1,
+                parseInt(partesInicio[2])
+            );
+            
+            const fin = new Date(
+                parseInt(partesFin[0]),
+                parseInt(partesFin[1]) - 1,
+                parseInt(partesFin[2])
+            );
+            
+            // Iterar día por día
+            const currentDate = new Date(inicio);
+            while (currentDate <= fin) {
+                const fechaStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+                fechasParaAgregar.push(fechaStr);
+                currentDate.setDate(currentDate.getDate() + 1);
             }
         }
         
-        const data = await response.json();
+        console.log(`📅 Fechas a agregar: ${fechasParaAgregar.length}`);
         
-        if (data.success) {
-            console.log('✅ Día no laboral creado exitosamente:', data.data);
-            
-            // Cerrar modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('agregarDiaNoLaboralModal'));
-            modal.hide();
-            
-            // Limpiar formulario
-            document.getElementById('agregarDiaNoLaboralForm').reset();
-            document.getElementById('diaNoLaboralActivo').checked = true;
-            document.getElementById('vacaciones').checked = true;
-            
-            // Recargar días no laborales
-            await loadDiasNoLaborales();
-            
-            // Actualizar estadísticas
-            updateStatsDisplay();
-            
-            // Mostrar mensaje de éxito
-            const fechaFormateada = new Date(fecha).toLocaleDateString('es-ES');
-            showSuccess(`Día no laboral del ${fechaFormateada} creado exitosamente`);
-            
-        } else {
-            throw new Error(data.message || 'Error al crear día no laboral');
+        // Verificar duplicados
+        const fechasExistentes = diasNoLaborales.map(d => d.fecha);
+        const fechasDuplicadas = fechasParaAgregar.filter(f => fechasExistentes.includes(f));
+        
+        if (fechasDuplicadas.length > 0) {
+            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', `Ya existen días no laborales configurados para algunas de estas fechas`);
+            return;
         }
+        
+        // Preparar datos para enviar (una entrada por fecha)
+        const diasData = fechasParaAgregar.map(fecha => ({
+            fecha: fecha,
+            motivo: motivo,
+            activo: activo
+        }));
+        
+        console.log('📋 Enviando días no laborales:', diasData.length);
+        
+        // Enviar al servidor (uno por uno o en batch según el endpoint)
+        const token = localStorage.getItem('token');
+        
+        // Para cada fecha, crear el día no laboral
+        let diasCreados = 0;
+        let errores = [];
+        
+        for (const diaData of diasData) {
+            try {
+                const response = await fetch('/api/horarios/dia-no-laboral', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(diaData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    errores.push(`${diaData.fecha}: ${errorData.message || 'Error'}`);
+                } else {
+                    diasCreados++;
+                }
+            } catch (error) {
+                errores.push(`${diaData.fecha}: ${error.message}`);
+            }
+        }
+        
+        // Verificar resultados
+        if (errores.length > 0) {
+            console.error('❌ Errores al crear días:', errores);
+            showModalAlert('agregarDiaNoLaboralModal', 'agregarDiaNoLaboralAlert', 'agregarDiaNoLaboralAlertText', `Se crearon ${diasCreados} días. Errores: ${errores.join(', ')}`);
+            if (diasCreados > 0) {
+                // Recargar días no laborales
+                await loadDiasNoLaborales();
+                updateStatsDisplay();
+            }
+            return;
+        }
+        
+        // Todos los días se crearon exitosamente
+        console.log(`✅ Se crearon ${diasCreados} días no laborales exitosamente`);
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('agregarDiaNoLaboralModal'));
+        modal.hide();
+        
+        // Limpiar formulario
+        document.getElementById('agregarDiaNoLaboralForm').reset();
+        document.getElementById('diaUnico').checked = true;
+        updateTipoSeleccion();
+        
+        // Recargar días no laborales
+        await loadDiasNoLaborales();
+        
+        // Actualizar estadísticas
+        updateStatsDisplay();
+        
+        // Mostrar mensaje de éxito
+        const mensaje = diasCreados === 1 
+            ? `Día no laboral creado exitosamente` 
+            : `${diasCreados} días no laborales creados exitosamente`;
+        showSuccess(mensaje);
         
         } catch (error) {
             console.error('❌ Error guardando día no laboral:', error);

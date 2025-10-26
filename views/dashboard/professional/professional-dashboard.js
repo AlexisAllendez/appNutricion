@@ -613,11 +613,6 @@ function renderSearchResults(pacientes, stats, searchTerm, pagination = null) {
                 </select>
             </div>
             <div class="col-md-2">
-                <button class="btn btn-outline-secondary w-100" id="exportBtn">
-                    <i class="fas fa-download me-1"></i>Exportar
-                </button>
-            </div>
-            <div class="col-md-2">
                 <button class="btn btn-outline-warning w-100" id="resetFiltersBtn">
                     <i class="fas fa-undo me-1"></i>Restablecer
                 </button>
@@ -845,12 +840,6 @@ function setupSearchEventListeners() {
     const sortBy = document.getElementById('sortBy');
     if (sortBy) {
         sortBy.addEventListener('change', filterPatients);
-    }
-    
-    // Event listener para exportar
-    const exportBtn = document.getElementById('exportBtn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', exportPatientsList);
     }
     
     // Event listener para restablecer filtros
@@ -1126,31 +1115,6 @@ async function resetFilters() {
         // Reconfigurar event listeners después del error
         setupSearchEventListeners();
     }
-}
-
-function exportPatientsList() {
-    const table = document.getElementById('patientsTable');
-    const rows = Array.from(table.querySelectorAll('tr'));
-    
-    let csv = 'Paciente,DNI,Email,Teléfono,Última Consulta,Peso,Estado\n';
-    
-    rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length > 1) {
-            const rowData = Array.from(cells).map(cell => 
-                `"${cell.textContent.replace(/"/g, '""')}"`
-            );
-            csv += rowData.join(',') + '\n';
-        }
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'pacientes.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
 }
 
 function viewPatientHistory(patientId) {
@@ -2827,8 +2791,9 @@ function newConsultation(patientId) {
     mostrarModalNuevaConsultaParaPaciente(patientId, paciente);
 }
 
+// Función de enviar mensaje a paciente - NO IMPLEMENTADA
 function sendMessage(patientId) {
-    showAlert(`Enviando mensaje a paciente ${patientId}`, 'info');
+    showAlert(`Funcionalidad de mensajería no está implementada`, 'info');
 }
 
 
@@ -2879,14 +2844,6 @@ function sortPatients() {
     });
     
     rows.forEach(row => tbody.appendChild(row));
-}
-
-function exportPatientsList() {
-    showAlert('Exportando lista de pacientes...', 'info');
-    
-    setTimeout(() => {
-        showAlert('Lista de pacientes exportada exitosamente', 'success');
-    }, 2000);
 }
 
 // Load system settings

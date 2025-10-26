@@ -244,20 +244,6 @@ const createAllTables = async (connection) => {
             `
         },
         {
-            name: 'documentos',
-            sql: `
-                CREATE TABLE documentos (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    usuario_id INT NOT NULL,
-                    fecha DATE NOT NULL,
-                    tipo VARCHAR(100),
-                    archivo_url VARCHAR(255) NOT NULL,
-                    descripcion TEXT,
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-                )
-            `
-        },
-        {
             name: 'planes_alimentacion',
             sql: `
                 CREATE TABLE planes_alimentacion (
@@ -269,20 +255,6 @@ const createAllTables = async (connection) => {
                     descripcion TEXT,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
                     FOREIGN KEY (profesional_id) REFERENCES profesionales(id) ON DELETE CASCADE
-                )
-            `
-        },
-        {
-            name: 'registros_comidas',
-            sql: `
-                CREATE TABLE registros_comidas (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    usuario_id INT NOT NULL,
-                    fecha DATE NOT NULL,
-                    tipo ENUM('desayuno','almuerzo','merienda','cena','colacion','otro') NOT NULL,
-                    descripcion TEXT,
-                    foto_url VARCHAR(255),
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 )
             `
         },
@@ -486,23 +458,6 @@ const createMissingTables = async (connection, missingTables) => {
             `
         },
         {
-            name: 'documentos',
-            sql: `
-                CREATE TABLE documentos (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    usuario_id INT NOT NULL,
-                    profesional_id INT NOT NULL,
-                    nombre_archivo VARCHAR(255) NOT NULL,
-                    tipo_documento ENUM('analisis', 'receta', 'imagen', 'otro') NOT NULL,
-                    ruta_archivo VARCHAR(500) NOT NULL,
-                    descripcion TEXT,
-                    fecha_subida DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-                    FOREIGN KEY (profesional_id) REFERENCES profesionales(id) ON DELETE CASCADE
-                )
-            `
-        },
-        {
             name: 'planes_alimentacion',
             sql: `
                 CREATE TABLE planes_alimentacion (
@@ -521,25 +476,6 @@ const createMissingTables = async (connection, missingTables) => {
                     activo BOOLEAN DEFAULT TRUE,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
                     FOREIGN KEY (profesional_id) REFERENCES profesionales(id) ON DELETE CASCADE
-                )
-            `
-        },
-        {
-            name: 'registros_comidas',
-            sql: `
-                CREATE TABLE registros_comidas (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    usuario_id INT NOT NULL,
-                    plan_id INT,
-                    tipo_comida ENUM('desayuno', 'colacion_manana', 'almuerzo', 'colacion_tarde', 'merienda', 'cena', 'colacion_noche') NOT NULL,
-                    alimentos TEXT NOT NULL,
-                    cantidades TEXT,
-                    calorias INT,
-                    fecha_comida DATE NOT NULL,
-                    hora_comida TIME,
-                    observaciones TEXT,
-                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-                    FOREIGN KEY (plan_id) REFERENCES planes_alimentacion(id) ON DELETE SET NULL
                 )
             `
         },
@@ -595,7 +531,8 @@ const verifyTablesStructure = async (connection) => {
     const requiredTables = [
         'profesionales', 'usuarios', 'horarios_disponibles', 'excepciones_horarios',
         'consultas', 'antecedentes', 'antropometria', 'evoluciones', 
-        'documentos', 'planes_alimentacion', 'registros_comidas', 'historia_clinica_resumen'
+        'planes_alimentacion', 'plan_comidas', 'laboratorios', 'resultados_laboratorio',
+        'plan_asignaciones', 'historia_clinica_resumen'
     ];
     
     const [tables] = await connection.query(`SHOW TABLES`);

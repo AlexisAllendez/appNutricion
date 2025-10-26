@@ -371,6 +371,31 @@ class GestionConsultasController {
 
             console.log(`📅 Fecha: ${fecha}, Día de la semana: ${diaSemanaNumero} (${nombreDia})`);
 
+            // VERIFICAR SI ES DÍA NO LABORAL
+            const diaNoLaboralResult = await executeQuery(`
+                SELECT COUNT(*) as count 
+                FROM excepciones_horarios 
+                WHERE profesional_id = ? AND fecha = ? AND activo = TRUE
+            `, [profesionalId, fecha]);
+            
+            const esDiaNoLaboral = diaNoLaboralResult[0].count > 0;
+            
+            if (esDiaNoLaboral) {
+                console.log(`❌ ${fecha} es un día no laboral, no se generan turnos disponibles`);
+                return res.json({
+                    success: true,
+                    data: {
+                        horariosDisponibles: [],
+                        horasOcupadas: [],
+                        fecha: fecha,
+                        diaSemana: diaSemanaNumero,
+                        nombreDia: nombreDia,
+                        timezone: timezone,
+                        esDiaNoLaboral: true
+                    }
+                });
+            }
+
             // Obtener horarios configurados del profesional para ese día de la semana
             // Los horarios están almacenados con nombres de días, no números
             const horariosConfigurados = await executeQuery(`

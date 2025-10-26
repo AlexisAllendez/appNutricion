@@ -141,8 +141,9 @@ function validateDocument() {
 function validateHistoriaClinica() {
     const hc = document.getElementById('numero_historia_clinica').value;
     
-    if (hc && !isValidHistoriaClinica(hc)) {
-        showFieldError(document.getElementById('numero_historia_clinica'), 'Ingrese un número de historia clínica válido');
+    // Solo verificar que no esté vacío (acepta cualquier formato)
+    if (!hc || hc.trim().length === 0) {
+        showFieldError(document.getElementById('numero_historia_clinica'), 'El número de historia clínica es obligatorio');
         return false;
     }
     
@@ -191,9 +192,10 @@ function isValidDocument(doc) {
 
 // Validar número de historia clínica
 function isValidHistoriaClinica(hc) {
-    // Permitir formato como HC001, HC0001, etc.
-    const hcRegex = /^HC[0-9]{3,4}$/i;
-    return hcRegex.test(hc);
+    // Permitir cualquier formato de historia clínica
+    // Solo verificar que no esté vacío y tenga al menos un carácter
+    // El formato puede variar según el país (HC001, H.C.-001, 12345, etc.)
+    return hc && hc.trim().length > 0;
 }
 
 // Establecer fecha de hoy como fecha de ingreso por defecto
@@ -330,11 +332,11 @@ function validateForm() {
         }
     }
     
-    // Validar formato de número de historia clínica
+    // Validar número de historia clínica (acepta cualquier formato, solo debe estar presente)
     const hcField = document.getElementById('numero_historia_clinica');
     if (hcField && hcField.value.trim()) {
         if (!isValidHistoriaClinica(hcField.value.trim())) {
-            showFieldError(hcField, 'Formato de historia clínica inválido (ejemplo: HC001)');
+            showFieldError(hcField, 'Número de historia clínica es obligatorio');
             if (!firstErrorField) {
                 firstErrorField = hcField;
             }

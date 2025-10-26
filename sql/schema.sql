@@ -210,18 +210,10 @@ CREATE TABLE IF NOT EXISTS planes_alimentacion (
     INDEX idx_tipo (tipo)
 );
 
-------------------------------------------------
--- 11. Registros de comidas (diarios del paciente)
-------------------------------------------------
-CREATE TABLE IF NOT EXISTS registros_comidas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    usuario_id INT NOT NULL,
-    fecha DATE NOT NULL,
-    tipo ENUM('desayuno','almuerzo','merienda','cena','colacion','otro') NOT NULL,
-    descripcion TEXT,
-    foto_url VARCHAR(255),
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-);
+-- -----------------------------------------------------
+-- TABLA registros_comidas ELIMINADA: No se usa en el sistema
+-- Funcionalidad prevista: Registro diario de comidas del paciente (no implementado)
+-- -----------------------------------------------------
 
 ------------------------------------------------
 -- 12. Resumen de Historia Clínica (Optimización)
@@ -286,78 +278,11 @@ CREATE TABLE IF NOT EXISTS plan_comidas (
     INDEX idx_plan_activo (plan_id, activo)
 );
 
-------------------------------------------------
--- 14. Biblioteca Nutricional - Ingredientes
-------------------------------------------------
-CREATE TABLE IF NOT EXISTS ingredientes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
-    categoria ENUM('vegetales','frutas','carnes','lacteos','cereales','legumbres','frutos_secos','condimentos','aceites','otros') NOT NULL,
-    calorias_por_100g DECIMAL(8,2),
-    proteinas_por_100g DECIMAL(8,2),
-    carbohidratos_por_100g DECIMAL(8,2),
-    grasas_por_100g DECIMAL(8,2),
-    fibra_por_100g DECIMAL(8,2),
-    azucares_por_100g DECIMAL(8,2),
-    sodio_por_100g DECIMAL(8,2),
-    descripcion TEXT,
-    alergenos TEXT COMMENT 'Comma-separated list of allergens',
-    origen VARCHAR(100),
-    estacional VARCHAR(50),
-    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unq_nombre (nombre),
-    INDEX idx_categoria (categoria),
-    INDEX idx_calorias (calorias_por_100g)
-);
-
-------------------------------------------------
--- 15. Biblioteca Nutricional - Recetas
-------------------------------------------------
-CREATE TABLE IF NOT EXISTS recetas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(255) NOT NULL,
-    categoria ENUM('desayuno','almuerzo','merienda','cena','colacion','snack','postre','sopa','ensalada','principal') NOT NULL,
-    descripcion TEXT,
-    calorias_total DECIMAL(8,2),
-    proteinas_total DECIMAL(8,2),
-    carbohidratos_total DECIMAL(8,2),
-    grasas_total DECIMAL(8,2),
-    fibra_total DECIMAL(8,2),
-    azucares_total DECIMAL(8,2),
-    sodio_total DECIMAL(8,2),
-    porciones INT DEFAULT 1,
-    calorias_por_porcion DECIMAL(8,2),
-    tiempo_preparacion INT COMMENT 'Minutos',
-    dificultad ENUM('facil','medio','dificil') DEFAULT 'facil',
-    ingredientes TEXT,
-    preparacion TEXT,
-    consejos TEXT,
-    alergenos TEXT,
-    creado_por INT,
-    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
-    actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    activo BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (creado_por) REFERENCES profesionales(id) ON DELETE SET NULL,
-    INDEX idx_categoria (categoria),
-    INDEX idx_calorias (calorias_total),
-    INDEX idx_creado_por (creado_por),
-    INDEX idx_activo (activo)
-);
-
-------------------------------------------------
--- 16. Ingredientes de Recetas
-------------------------------------------------
-CREATE TABLE IF NOT EXISTS recipe_ingredientes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    receta_id INT NOT NULL,
-    ingrediente_id INT NOT NULL,
-    cantidad DECIMAL(8,2) NOT NULL,
-    unidad VARCHAR(50) NOT NULL COMMENT 'g, ml, piezas, etc.',
-    notas VARCHAR(255),
-    FOREIGN KEY (receta_id) REFERENCES recetas(id) ON DELETE CASCADE,
-    FOREIGN KEY (ingrediente_id) REFERENCES ingredientes(id) ON DELETE CASCADE,
-    UNIQUE KEY unq_receta_ingrediente (receta_id, ingrediente_id)
-);
+-- -----------------------------------------------------
+-- TABLAS DE BIBLIOTECA NUTRICIONAL ELIMINADAS
+-- ingredientes, recetas, recipe_ingredientes: No se usan en el sistema
+-- Funcionalidad prevista: Biblioteca nutricional con ingredientes y recetas (no implementado)
+-- -----------------------------------------------------
 
 
 
